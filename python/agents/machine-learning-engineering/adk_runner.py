@@ -29,7 +29,10 @@ try:
     # Import ADK components directly
     from google.adk.agents import Agent
     from google.genai import types
+    from google.adk.runners import InMemoryRunner
+    from google.adk.sessions import InMemorySessionService
     from machine_learning_engineering.agent import root_agent
+    import asyncio
 
     print("🤖 Machine Learning Engineering Agent (ADK Compatible)")
     print("=" * 60)
@@ -39,6 +42,18 @@ try:
     print("=" * 60)
     print("Type 'quit' to exit, 'help' for commands")
     print()
+
+    # Initialize runner and session
+    app_name = "machine-learning-engineering"
+    runner = InMemoryRunner(agent=root_agent, app_name=app_name)
+
+    async def create_session():
+        return await runner.session_service.create_session(
+            app_name=runner.app_name, user_id="interactive_user"
+        )
+
+    session = asyncio.run(create_session())
+    print(f"✅ Session created: {session.id}")
 
     while True:
         try:
@@ -59,14 +74,21 @@ try:
 
             print("🤖 Agent: ", end="", flush=True)
 
-            # Generate response from agent
-            response = root_agent.generate_content(user_input)
+            # Generate response from agent using runner
+            async def get_response():
+                content = types.Content(parts=[types.Part(text=user_input)], role="user")
+                response_text = ""
+                async for event in runner.run_async(
+                    user_id=session.user_id,
+                    session_id=session.id,
+                    new_message=content,
+                ):
+                    if event.content.parts and event.content.parts[0].text:
+                        response_text += event.content.parts[0].text
+                return response_text
 
-            if hasattr(response, "text"):
-                print(response.text)
-            else:
-                print(str(response))
-
+            response = asyncio.run(get_response())
+            print(response)
             print()
 
         except KeyboardInterrupt:
