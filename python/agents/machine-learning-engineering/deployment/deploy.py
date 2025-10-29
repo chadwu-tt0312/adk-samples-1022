@@ -1,6 +1,5 @@
 """Deployment script for Machine Learning Engineering Agent"""
 
-
 import os
 
 import vertexai
@@ -35,12 +34,6 @@ def create() -> None:
             "google-genai (>=1.5.0,<2.0.0)",
             "pydantic (>=2.10.6,<3.0.0)",
             "absl-py (>=2.2.1,<3.0.0)",
-            "numpy (>=2.2.3)",
-            "pandas (>=2.3.1)",
-            "scikit-learn (>=1.7.1)",
-            "scipy (>=1.16.0)",
-            "lightgbm (>=4.6.0)",
-            "torch @ https://download.pytorch.org/whl/cpu-cxx11-abi/torch-2.7.1%2Bcpu.cxx11.abi-cp312-cp312-linux_x86_64.whl",
         ],
         extra_packages=[
             "./machine_learning_engineering",
@@ -62,9 +55,7 @@ def list_agents() -> None:
 - Create time: {agent.create_time}
 - Update time: {agent.update_time}
 """
-    remote_agents_string = "\n".join(
-        template.format(agent=agent) for agent in remote_agents
-    )
+    remote_agents_string = "\n".join(template.format(agent=agent) for agent in remote_agents)
     print(f"All remote agents:\n{remote_agents_string}")
 
 
@@ -72,19 +63,9 @@ def main(argv: list[str]) -> None:
     del argv  # unused
     load_dotenv()
 
-    project_id = (
-        FLAGS.project_id
-        if FLAGS.project_id
-        else os.getenv("GOOGLE_CLOUD_PROJECT")
-    )
-    location = (
-        FLAGS.location if FLAGS.location else os.getenv("GOOGLE_CLOUD_LOCATION")
-    )
-    bucket = (
-        FLAGS.bucket
-        if FLAGS.bucket
-        else os.getenv("GOOGLE_CLOUD_STORAGE_BUCKET")
-    )
+    project_id = FLAGS.project_id if FLAGS.project_id else os.getenv("GOOGLE_CLOUD_PROJECT")
+    location = FLAGS.location if FLAGS.location else os.getenv("GOOGLE_CLOUD_LOCATION")
+    bucket = FLAGS.bucket if FLAGS.bucket else os.getenv("GOOGLE_CLOUD_STORAGE_BUCKET")
 
     print(f"PROJECT: {project_id}")
     print(f"LOCATION: {location}")
@@ -97,9 +78,7 @@ def main(argv: list[str]) -> None:
         print("Missing required environment variable: GOOGLE_CLOUD_LOCATION")
         return
     elif not bucket:
-        print(
-            "Missing required environment variable: GOOGLE_CLOUD_STORAGE_BUCKET"
-        )
+        print("Missing required environment variable: GOOGLE_CLOUD_STORAGE_BUCKET")
         return
 
     vertexai.init(
