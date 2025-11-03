@@ -2,100 +2,115 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
-import subprocess
+from sklearn.impute import SimpleImputer
+import os
 import sys
 
-# Attempt to import CatBoostRegressor, if not found, install it.
-try:
-    from catboost import CatBoostRegressor
-except ImportError:
-    print("CatBoost not found. Installing catboost...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "catboost"])
-    from catboost import CatBoostRegressor
-    print("CatBoost installed successfully.")
+def install_and_import(package):
+    """
+    Installs a package if not found and then imports it.
+    """
+    try:
+        __import__(package)
+    except ImportError:
+        print(f"Installing {package}...")
+        try:
+            # Use sys.executable to ensure pip corresponds to the current Python environment
+            os.system(f"{sys.executable} -m pip install {package}")
+            __import__(package)
+            print(f"{package} installed successfully.")
+        except Exception as e:
+            print(f"Failed to install {package}: {e}")
+            raise
+
+# Ensure necessary libraries are installed
+install_and_import('pandas')
+install_and_import('numpy')
+install_and_import('sklearn') # scikit-learn is imported as sklearn
+
+def main():
+    # Define file paths
+    train_file = "./input/train.csv"
+    test_file = "./input/test.csv"
+    submission_file = "submission.csv"
+
+    # 1. Load Data
+    try:
+        train_df = pd.read_csv(train_file)
+        test_df = pd.read_csv(test_file)
+    except FileNotFoundError:
+        print(f"Error: Ensure '{train_file}' and '{test_file}' exist in the './input' directory.")
+        return
+
+    # Separate target variable
+    X = train_df.drop("median_house_value", axis=1)
+    y = train_df["median_house_value"]
+
+    # Combine train and test for consistent preprocessing
+    combined_df = pd.concat([X, test_df], ignore_index=True)
+
+    # 2. Preprocessing
+    # Impute missing values for 'total_bedrooms'
+    # Ensure all columns exist before trying to impute
+    if 'total_bedrooms' in combined_df.columns:
+        imputer = SimpleImputer(strategy="median")
+        combined_df['total_bedrooms'] = imputer.fit_transform(combined_df[['total_bedrooms']])
+
+    # Feature Engineering (example features)
+    # Avoid division by zero by adding a small epsilon or handling NaNs after creation
+    combined_df['households_safe'] = combined_df['households'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
+    combined_df['total_rooms_safe'] = combined_df['total_rooms'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
+
+    combined_df['rooms_per_household'] = combined_df['total_rooms'] / combined_df['households_safe']
+    combined_df['bedrooms_per_room'] = combined_df['total_bedrooms'] / combined_df['total_rooms_safe']
+    combined_df['population_per_household'] = combined_df['population'] / combined_df['households_safe']
+
+    # Drop the safe columns used for calculation
+    combined_df = combined_df.drop(columns=['households_safe', 'total_rooms_safe'])
+
+    # After feature engineering, there might be NaNs or infs if original values were zero and replaced with NaN
+    # Replace inf/-inf with NaN and then impute
+    combined_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    
+    # Impute any new NaN values created by feature engineering or existing ones
+    # Re-initialize imputer to ensure it fits on the current state of combined_df
+    imputer_all_cols = SimpleImputer(strategy="median")
+    
+    # Fit and transform only columns that might have NaNs
+    for col in combined_df.columns:
+        if combined_df[col].isnull().any():
+            combined_df[col] = imputer_all_cols.fit_transform(combined_df[[col]])
 
 
-# --- Load Data ---
-# All input data is stored in "./input" directory
-train_df = pd.read_csv("./input/train.csv")
-test_df = pd.read_csv("./input/test.csv")
+    # Split back into processed train and test sets
+    X_processed = combined_df.iloc[:len(X)]
+    test_processed = combined_df.iloc[len(X):]
 
-# --- Feature Engineering ---
-def create_features(df):
-    # Avoid division by zero by replacing 0 with a small epsilon or the median/mean in the denominator
-    # For this dataset, 'households' and 'total_rooms' are generally positive, but checking is good practice.
-    # Let's ensure denominators are not zero before division
-    df['rooms_per_household'] = df['total_rooms'] / df['households'].replace(0, np.nan)
-    df['bedrooms_per_room'] = df['total_bedrooms'] / df['total_rooms'].replace(0, np.nan)
-    df['population_per_household'] = df['population'] / df['households'].replace(0, np.nan)
-    return df
+    # 3. Model Training
+    # Split training data for validation
+    X_train, X_val, y_train, y_val = train_test_split(X_processed, y, test_size=0.2, random_state=42)
 
-train_df = create_features(train_df)
-test_df = create_features(test_df)
+    # Initialize and train the model
+    # Using n_jobs=-1 to utilize all available CPU cores for faster training
+    model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+    model.fit(X_train, y_train)
 
-# --- Handle Missing Values ---
-# Impute missing 'total_bedrooms' with the median from the training set to prevent data leakage
-median_total_bedrooms_train = train_df['total_bedrooms'].median()
-train_df['total_bedrooms'].fillna(median_total_bedrooms_train, inplace=True)
-test_df['total_bedrooms'].fillna(median_total_bedrooms_train, inplace=True)
+    # 4. Evaluation
+    y_pred_val = model.predict(X_val)
+    rmse = np.sqrt(mean_squared_error(y_val, y_pred_val))
 
-# Impute missing values for engineered features.
-# Use median from training data for both train and test sets to prevent data leakage.
-engineered_features = ['rooms_per_household', 'bedrooms_per_room', 'population_per_household']
-for col in engineered_features:
-    # Calculate median only from the training data
-    median_val_for_col = train_df[col].median()
-    train_df[col].fillna(median_val_for_col, inplace=True)
-    test_df[col].fillna(median_val_for_col, inplace=True)
+    print(f"Final Validation Performance: {rmse}")
 
-# --- Define Features and Target ---
-features = [
-    'longitude', 'latitude', 'housing_median_age', 'total_rooms',
-    'total_bedrooms', 'population', 'households', 'median_income',
-    'rooms_per_household', 'bedrooms_per_room', 'population_per_household'
-]
-target = 'median_house_value'
+    # 5. Prediction on test data
+    test_predictions = model.predict(test_processed)
 
-X_full_train = train_df[features]
-y_full_train = train_df[target]
-X_test_submission = test_df[features]
+    # 6. Generate Submission File
+    submission_df = pd.DataFrame({'median_house_value': test_predictions})
+    submission_df.to_csv(submission_file, index=False)
 
-# --- Model Training and Validation ---
-# Split the full training data into training and validation sets for evaluating performance.
-# This hold-out set ensures we get an unbiased estimate of the model's performance on unseen data.
-X_train, X_val, y_train, y_val = train_test_split(X_full_train, y_full_train, test_size=0.2, random_state=42)
+    print(f"Submission file '{submission_file}' created successfully.")
 
-# Initialize CatBoost Regressor
-# loss_function='RMSE' is chosen to directly optimize for the competition's evaluation metric.
-# random_seed ensures reproducibility. verbose=0 suppresses training output for cleaner execution.
-cat_model = CatBoostRegressor(loss_function='RMSE', random_seed=42, verbose=0)
-
-# Train the model on the training split (80% of train.csv)
-cat_model.fit(X_train, y_train)
-
-# Make predictions on the validation set (20% of train.csv)
-y_val_pred = cat_model.predict(X_val)
-
-# Evaluate the model using Root Mean Squared Error (RMSE)
-rmse_val = np.sqrt(mean_squared_error(y_val, y_val_pred))
-print(f"Final Validation Performance: {rmse_val}")
-
-# --- Retrain on full training data for final predictions ---
-# It is common practice to retrain the model on the entire training dataset
-# (X_full_train, y_full_train) after validating performance, to leverage all available data for the final model.
-final_cat_model = CatBoostRegressor(loss_function='RMSE', random_seed=42, verbose=0)
-final_cat_model.fit(X_full_train, y_full_train)
-
-# --- Make Predictions on Test Set ---
-test_predictions = final_cat_model.predict(X_test_submission)
-
-# Ensure predictions are non-negative, as median house values cannot be negative
-test_predictions[test_predictions < 0] = 0
-
-# --- Submission Format ---
-# Print the header as required by the submission format
-print("median_house_value")
-# Print each prediction on a new line
-for val in test_predictions:
-    print(f"{val}")
+if __name__ == "__main__":
+    main()

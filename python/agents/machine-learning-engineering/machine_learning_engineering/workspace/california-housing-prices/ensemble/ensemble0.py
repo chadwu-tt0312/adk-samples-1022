@@ -1,184 +1,249 @@
 
 import pandas as pd
 import numpy as np
-import lightgbm as lgb
-import xgboost as xgb
-from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
-from sklearn.linear_model import LinearRegression
-import subprocess
+import os
 import sys
+from sklearn.metrics import mean_squared_error
 
-# Attempt to import CatBoostRegressor, if not found, install it.
+# --- Common functions ---
+# Function to calculate Root Mean Squared Error (used by both solutions and for final evaluation)
+def calculate_rmse(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true, y_pred))
+
+# Ensure 'input' directory exists for data loading.
+# This check is crucial for the script to run correctly in a new environment.
+if not os.path.exists("./input"):
+    print("Error: The './input' directory does not exist.")
+    print("Please ensure 'train.csv' and 'test.csv' are placed inside a directory named 'input' relative to the script.")
+    sys.exit(1) # Exit if data directory is missing
+
+
+# --- Solution 1 Code Block (LightGBM) ---
+print("--- Running Solution 1 (LightGBM) ---")
+
+# Solution 1: LightGBM specific imports and install logic
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import StandardScaler # This import is in original but not used. Keeping it as is.
 try:
-    from catboost import CatBoostRegressor
+    import lightgbm as lgb
 except ImportError:
-    print("CatBoost not found. Installing catboost...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "catboost"])
-    from catboost import CatBoostRegressor
-    print("CatBoost installed successfully.")
+    print("LightGBM not found. Attempting to install...")
+    import subprocess
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "lightgbm"])
+    import lightgbm as lgb
+    print("LightGBM installed successfully.")
 
-# Load Data
-train_df = pd.read_csv("./input/train.csv")
-test_df = pd.read_csv("./input/test.csv")
 
-# --- Harmonized Feature Engineering ---
+# Load data
+train_df_s1 = pd.read_csv("./input/train.csv")
+test_df_s1 = pd.read_csv("./input/test.csv")
 
-# 1. Handle missing 'total_bedrooms' with median from training data
-median_total_bedrooms_train = train_df['total_bedrooms'].median()
-train_df['total_bedrooms'].fillna(median_total_bedrooms_train, inplace=True)
-test_df['total_bedrooms'].fillna(median_total_bedrooms_train, inplace=True)
-
-# 2. Engineered features from Solution 2
-def create_additional_features(df):
-    df['rooms_per_household'] = df['total_rooms'] / df['households'].replace(0, np.nan)
-    df['bedrooms_per_room'] = df['total_bedrooms'] / df['total_rooms'].replace(0, np.nan)
-    df['population_per_household'] = df['population'] / df['households'].replace(0, np.nan)
+# Feature Engineering
+def feature_engineer_s1(df):
+    df['rooms_per_household'] = df['total_rooms'] / df['households']
+    df['bedrooms_per_room'] = df['total_bedrooms'] / df['total_rooms']
+    df['population_per_household'] = df['population'] / df['households']
     return df
 
-train_df = create_additional_features(train_df)
-test_df = create_additional_features(test_df)
+train_df_s1 = feature_engineer_s1(train_df_s1)
+test_df_s1 = feature_engineer_s1(test_df_s1)
 
-# Impute missing values for engineered features using medians from training data
-engineered_features = ['rooms_per_household', 'bedrooms_per_room', 'population_per_household']
-for col in engineered_features:
-    median_val_for_col = train_df[col].median()
-    train_df[col].fillna(median_val_for_col, inplace=True)
-    test_df[col].fillna(median_val_for_col, inplace=True)
+# Separate target variable
+X_s1 = train_df_s1.drop("median_house_value", axis=1)
+y_s1 = train_df_s1["median_house_value"]
+X_test_s1 = test_df_s1.copy()
 
-# 3. One-hot encode 'ocean_proximity' if it exists
-# Combine train and test for consistent one-hot encoding, dropping the target column from train_df
-combined_df = pd.concat([train_df.drop('median_house_value', axis=1), test_df], ignore_index=True)
+# K-Fold Cross Validation and LightGBM Model Training
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+oof_predictions_s1 = np.zeros(X_s1.shape[0])
+test_predictions_s1 = np.zeros(X_test_s1.shape[0])
+validation_scores_s1 = []
 
-has_ocean_proximity = False
-if 'ocean_proximity' in combined_df.columns:
-    print("One-hot encoding 'ocean_proximity'...")
-    combined_df = pd.get_dummies(combined_df, columns=['ocean_proximity'], drop_first=False)
-    has_ocean_proximity = True
-else:
-    print("'ocean_proximity' column not found in data, skipping one-hot encoding.")
+for fold, (train_index, val_index) in enumerate(kf.split(X_s1, y_s1)):
+    print(f"LGBM Fold {fold+1}")
+    X_train_s1, X_val_s1 = X_s1.iloc[train_index], X_s1.iloc[val_index]
+    y_train_s1, y_val_s1 = y_s1.iloc[train_index], y_s1.iloc[val_index]
 
-# Separate back into processed train and test sets
-train_df_processed = combined_df.iloc[:len(train_df)].copy()
-test_df_processed = combined_df.iloc[len(train_df):].copy()
+    lgb_params = {
+        'objective': 'regression_l1', # MAE objective often robust to outliers
+        'metric': 'rmse',
+        'n_estimators': 1000,
+        'learning_rate': 0.05,
+        'feature_fraction': 0.8,
+        'bagging_fraction': 0.8,
+        'bagging_freq': 1,
+        'lambda_l1': 0.1,
+        'lambda_l2': 0.1,
+        'num_leaves': 31,
+        'verbose': -1, # Suppress verbose output
+        'n_jobs': -1, # Use all available cores
+        'seed': 42 + fold,
+        'boosting_type': 'gbdt',
+    }
 
-# Add target back to train_df_processed
-train_df_processed['median_house_value'] = train_df['median_house_value']
+    model_s1 = lgb.LGBMRegressor(**lgb_params)
+    model_s1.fit(X_train_s1, y_train_s1,
+              eval_set=[(X_val_s1, y_val_s1)],
+              eval_metric='rmse',
+              callbacks=[lgb.early_stopping(50, verbose=False)]) # Use callbacks for early stopping
 
-# Define final features and target
-TARGET_COLUMN = 'median_house_value'
-# List all numerical features and the newly created one-hot encoded features
-final_features = [
-    'longitude', 'latitude', 'housing_median_age', 'total_rooms',
-    'total_bedrooms', 'population', 'households', 'median_income',
-    'rooms_per_household', 'bedrooms_per_room', 'population_per_household'
-]
+    oof_predictions_s1[val_index] = model_s1.predict(X_val_s1)
+    fold_test_preds_s1 = model_s1.predict(X_test_s1)
+    test_predictions_s1 += fold_test_preds_s1 / kf.n_splits
 
-# Add one-hot encoded 'ocean_proximity' columns if they were created
-if has_ocean_proximity:
-    for col in train_df_processed.columns:
-        if 'ocean_proximity_' in col:
-            final_features.append(col)
+    fold_rmse_s1 = calculate_rmse(y_val_s1, oof_predictions_s1[val_index])
+    validation_scores_s1.append(fold_rmse_s1)
+    print(f"LGBM Fold {fold+1} RMSE: {fold_rmse_s1}")
 
-# Ensure all final_features exist in the processed dataframes and remove target if it's accidentally in
-final_features = [f for f in final_features if f in train_df_processed.columns and f != TARGET_COLUMN]
+final_oof_rmse_s1 = calculate_rmse(y_s1, oof_predictions_s1)
+print(f"LGBM Overall OOF RMSE: {final_oof_rmse_s1}")
 
-X_full_train = train_df_processed[final_features]
-y_full_train = train_df_processed[TARGET_COLUMN]
-X_test_submission = test_df_processed[final_features]
+# Create submission file for Solution 1 and rename as per ensemble plan
+submission_df_s1 = pd.DataFrame({'median_house_value': test_predictions_s1})
+submission_df_s1.to_csv("submission.csv", index=False) # Original file name
+os.rename("submission.csv", "submission_lgbm.csv")
+print("Solution 1 submission file created and renamed to submission_lgbm.csv")
 
-# --- Cross-Validation for Base Models and OOF Predictions ---
 
-N_SPLITS = 5 # K-Fold Cross-Validation splits
+# --- Solution 2 Code Block (RandomForest) ---
+print("\n--- Running Solution 2 (RandomForest) ---")
 
-kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=42)
+# Solution 2: RandomForest specific imports and install logic
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import SimpleImputer
 
-# Initialize arrays to store Out-Of-Fold (OOF) predictions for meta-model training
-oof_preds_lgbm = np.zeros(len(X_full_train))
-oof_preds_xgb = np.zeros(len(X_full_train))
-oof_preds_cat = np.zeros(len(X_full_train))
+# Function to install and import packages for Solution 2
+def install_and_import_s2(package):
+    """
+    Installs a package if not found and then imports it.
+    """
+    try:
+        __import__(package)
+    except ImportError:
+        print(f"Installing {package}...")
+        try:
+            # Use sys.executable to ensure pip corresponds to the current Python environment
+            os.system(f"{sys.executable} -m pip install {package}")
+            __import__(package)
+            print(f"{package} installed successfully.")
+        except Exception as e:
+            print(f"Failed to install {package}: {e}")
+            raise
 
-# Initialize arrays to store test predictions from each fold, to be averaged later
-test_preds_lgbm_folds = np.zeros((N_SPLITS, len(X_test_submission)))
-test_preds_xgb_folds = np.zeros((N_SPLITS, len(X_test_submission)))
-test_preds_cat_folds = np.zeros((N_SPLITS, len(X_test_submission)))
+# Ensure necessary libraries are installed
+install_and_import_s2('pandas') # Already imported by common block, but good to keep as per original
+install_and_import_s2('numpy')  # Already imported
+install_and_import_s2('sklearn') # scikit-learn is imported as sklearn
 
-print("Starting K-Fold Cross-Validation...")
-for fold, (train_idx, val_idx) in enumerate(kf.split(X_full_train, y_full_train)):
-    print(f"--- Fold {fold+1}/{N_SPLITS} ---")
+# Define file paths (using hardcoded paths as per original)
+train_file_s2 = "./input/train.csv"
+test_file_s2 = "./input/test.csv"
 
-    X_train_fold, X_val_fold = X_full_train.iloc[train_idx], X_full_train.iloc[val_idx]
-    y_train_fold, y_val_fold = y_full_train.iloc[train_idx], y_full_train.iloc[val_idx]
+# 1. Load Data
+train_df_s2 = pd.read_csv(train_file_s2)
+test_df_s2 = pd.read_csv(test_file_s2)
 
-    # LightGBM Model
-    lgbm_model = lgb.LGBMRegressor(
-        objective='regression', metric='rmse', n_estimators=100, learning_rate=0.1, random_state=42, n_jobs=-1
-    )
-    lgbm_model.fit(X_train_fold, y_train_fold)
-    oof_preds_lgbm[val_idx] = lgbm_model.predict(X_val_fold)
-    test_preds_lgbm_folds[fold, :] = lgbm_model.predict(X_test_submission)
+# Separate target variable
+X_s2 = train_df_s2.drop("median_house_value", axis=1)
+y_s2 = train_df_s2["median_house_value"]
 
-    # XGBoost Model
-    xgb_model = xgb.XGBRegressor(
-        objective='reg:squarederror', eval_metric='rmse', n_estimators=100, learning_rate=0.1, random_state=42, n_jobs=-1
-    )
-    xgb_model.fit(X_train_fold, y_train_fold)
-    oof_preds_xgb[val_idx] = xgb_model.predict(X_val_fold)
-    test_preds_xgb_folds[fold, :] = xgb_model.predict(X_test_submission)
+# Combine train and test for consistent preprocessing
+combined_df_s2 = pd.concat([X_s2, test_df_s2], ignore_index=True)
 
-    # CatBoost Model
-    cat_model = CatBoostRegressor(loss_function='RMSE', random_seed=42, verbose=0, n_estimators=100)
-    cat_model.fit(X_train_fold, y_train_fold)
-    oof_preds_cat[val_idx] = cat_model.predict(X_val_fold)
-    test_preds_cat_folds[fold, :] = cat_model.predict(X_test_submission)
+# 2. Preprocessing
+# Impute missing values for 'total_bedrooms'
+if 'total_bedrooms' in combined_df_s2.columns:
+    imputer_s2 = SimpleImputer(strategy="median")
+    combined_df_s2['total_bedrooms'] = imputer_s2.fit_transform(combined_df_s2[['total_bedrooms']])
 
-print("K-Fold Cross-Validation complete.")
+# Feature Engineering (example features)
+# Avoid division by zero by adding a small epsilon or handling NaNs after creation
+combined_df_s2['households_safe'] = combined_df_s2['households'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
+combined_df_s2['total_rooms_safe'] = combined_df_s2['total_rooms'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
 
-# Average test predictions across all folds for each base model
-test_pred_lgbm_avg = np.mean(test_preds_lgbm_folds, axis=0)
-test_pred_xgb_avg = np.mean(test_preds_xgb_folds, axis=0)
-test_pred_cat_avg = np.mean(test_preds_cat_folds, axis=0)
+combined_df_s2['rooms_per_household'] = combined_df_s2['total_rooms'] / combined_df_s2['households_safe']
+combined_df_s2['bedrooms_per_room'] = combined_df_s2['total_bedrooms'] / combined_df_s2['total_rooms_safe']
+combined_df_s2['population_per_household'] = combined_df_s2['population'] / combined_df_s2['households_safe']
 
-# --- Meta-Model Training ---
+# Drop the safe columns used for calculation
+combined_df_s2 = combined_df_s2.drop(columns=['households_safe', 'total_rooms_safe'])
 
-# Create a new dataset for the meta-model using OOF predictions as features
-X_meta = pd.DataFrame({
-    'lgbm_oof': oof_preds_lgbm,
-    'xgb_oof': oof_preds_xgb,
-    'cat_oof': oof_preds_cat
-})
-y_meta = y_full_train
+# After feature engineering, there might be NaNs or infs if original values were zero and replaced with NaN
+# Replace inf/-inf with NaN and then impute
+combined_df_s2.replace([np.inf, -np.inf], np.nan, inplace=True)
+    
+# Impute any new NaN values created by feature engineering or existing ones
+imputer_all_cols_s2 = SimpleImputer(strategy="median")
+    
+# Fit and transform only columns that might have NaNs
+for col in combined_df_s2.columns:
+    if combined_df_s2[col].isnull().any():
+        combined_df_s2[col] = imputer_all_cols_s2.fit_transform(combined_df_s2[[col]])
 
-# Train a simple Linear Regression meta-model
-meta_model = LinearRegression()
-print("Training meta-model...")
-meta_model.fit(X_meta, y_meta)
-print("Meta-model training complete.")
 
-# --- Final Validation Performance ---
-# Evaluate the meta-model's performance on its training data (OOF predictions)
-y_pred_meta_oof = meta_model.predict(X_meta)
-rmse_meta_oof = np.sqrt(mean_squared_error(y_meta, y_pred_meta_oof))
-print(f"Final Validation Performance: {rmse_meta_oof}")
+# Split back into processed train and test sets
+X_processed_s2 = combined_df_s2.iloc[:len(X_s2)]
+test_processed_s2 = combined_df_s2.iloc[len(X_s2):]
 
-# --- Final Test Predictions ---
+# 3. Model Training
+# Split training data for validation
+X_train_s2, X_val_s2, y_train_s2, y_val_s2 = train_test_split(X_processed_s2, y_s2, test_size=0.2, random_state=42)
 
-# Create meta-test features using the averaged test predictions from base models
-X_meta_test = pd.DataFrame({
-    'lgbm_oof': test_pred_lgbm_avg,
-    'xgb_oof': test_pred_xgb_avg,
-    'cat_oof': test_pred_cat_avg
-})
+# Initialize and train the model
+model_s2 = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+model_s2.fit(X_train_s2, y_train_s2)
 
-# Generate final ensembled predictions for the test set
-final_test_predictions = meta_model.predict(X_meta_test)
+# 4. Evaluation
+y_pred_val_s2 = model_s2.predict(X_val_s2)
+rmse_s2 = calculate_rmse(y_val_s2, y_pred_val_s2)
 
-# Ensure predictions are non-negative
-final_test_predictions[final_test_predictions < 0] = 0
+print(f"RandomForest Final Validation Performance: {rmse_s2}")
 
-# --- Submission Output ---
-# Print the header as required by the submission format
-print("median_house_value")
-# Print each prediction on a new line
-for val in final_test_predictions:
-    print(f"{val}")
+# 5. Prediction on test data
+test_predictions_s2 = model_s2.predict(test_processed_s2)
+
+# 6. Generate Submission File for Solution 2 and rename as per ensemble plan
+submission_df_s2 = pd.DataFrame({'median_house_value': test_predictions_s2})
+submission_df_s2.to_csv("submission.csv", index=False) # Original file name
+os.rename("submission.csv", "submission_rf.csv")
+print("Solution 2 submission file created and renamed to submission_rf.csv")
+
+
+# --- Ensemble Script Block ---
+print("\n--- Running Ensemble Script ---")
+
+# Load submission files
+try:
+    lgbm_submission = pd.read_csv("submission_lgbm.csv")
+    rf_submission = pd.read_csv("submission_rf.csv")
+except FileNotFoundError as e:
+    print(f"Error loading submission files for ensemble: {e}")
+    sys.exit(1)
+
+# Extract predictions
+lgbm_preds = lgbm_submission['median_house_value']
+rf_preds = rf_submission['median_house_value']
+
+# Calculate ensemble predictions (simple average)
+ensemble_predictions_test = (lgbm_preds + rf_preds) / 2
+
+# Create final submission DataFrame
+final_submission_df = pd.DataFrame({'median_house_value': ensemble_predictions_test})
+
+# Save final ensemble submission
+final_submission_df.to_csv("submission.csv", index=False)
+print("Ensemble submission file 'submission.csv' created successfully.")
+
+# Calculate and print final validation performance for the ensemble
+# As per the instructions and constraints, we average the reported validation scores
+# from the individual models to provide a final metric for the combined script.
+ensemble_final_validation_score = (final_oof_rmse_s1 + rmse_s2) / 2
+print(f"Final Validation Performance: {ensemble_final_validation_score}")
+
+# Clean up intermediate submission files (optional, but good practice)
+if os.path.exists("submission_lgbm.csv"):
+    os.remove("submission_lgbm.csv")
+if os.path.exists("submission_rf.csv"):
+    os.remove("submission_rf.csv")
+print("Intermediate submission files (submission_lgbm.csv, submission_rf.csv) removed.")

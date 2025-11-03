@@ -1,0 +1,51 @@
+## Model name
+LightGBM (LGBMRegressor)
+
+## Example Python code
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+import lightgbm as lgb
+
+# --- Synthetic Data Generation for Demonstration ---
+np.random.seed(42)
+num_samples = 1000
+num_features = 10
+
+X = pd.DataFrame(np.random.rand(num_samples, num_features), columns=[f'feature_{i}' for i in range(num_features)])
+y = (2 * X['feature_0'] + 3 * X['feature_1']**2 - 0.5 * X['feature_2'] +
+     np.random.normal(0, 0.5, num_samples)) + 100 
+
+X_train_comp, X_test_comp, y_train_comp, y_test_comp = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(X_train_comp, y_train_comp, test_size=0.25, random_state=42) # 0.25 * 0.8 = 0.2 of original
+# --- End Synthetic Data Generation ---
+
+# Initialize and train the LightGBM Regressor model
+# objective: 'regression' or 'regression_l1' (MAE), 'regression_l2' (MSE/RMSE)
+# num_leaves: max number of leaves in one tree (main complexity parameter)
+# n_estimators: number of boosting rounds
+# learning_rate: step size shrinkage
+lgb_model = lgb.LGBMRegressor(objective='regression_l2', # 'regression_l2' for RMSE
+                              n_estimators=100, 
+                              learning_rate=0.1, 
+                              num_leaves=31, # default value, often a good starting point
+                              random_state=42,
+                              n_jobs=-1) # Use all available cores
+
+print("Training LightGBM model...")
+lgb_model.fit(X_train, y_train,
+              eval_set=[(X_val, y_val)],
+              eval_metric='rmse', # Evaluate using RMSE
+              callbacks=[lgb.early_stopping(10, verbose=False)]) # Stop if validation error doesn't improve for 10 rounds
+
+# Make predictions on the competition test data
+lgb_predictions = lgb_model.predict(X_test_comp)
+
+# (Optional) Evaluate on the held-out test data if labels are available (e.g., for local testing)
+lgb_rmse = np.sqrt(mean_squared_error(y_test_comp, lgb_predictions))
+print(f"LightGBM RMSE on synthetic test data: {lgb_rmse:.4f}")
+
+# The submission would be a DataFrame with the predictions
+# submission_df = pd.DataFrame({'median_house_value': lgb_predictions})
+# submission_df.to_csv('submission_lgb.csv', index=False)

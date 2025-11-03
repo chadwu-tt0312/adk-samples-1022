@@ -40,15 +40,19 @@ X = train_df.drop("median_house_value", axis=1)
 y = train_df["median_house_value"]
 X_test = test_df.copy()
 
+
+from sklearn.preprocessing import RobustScaler
+
 # Identify numerical features for scaling.
 # For this dataset, all input features (after engineering) are treated as numerical.
 numerical_features = X.columns
 
 # Scaling numerical features
 # It's important to fit scaler only on training data and transform both train and test data.
-scaler = StandardScaler()
+scaler = RobustScaler()
 X[numerical_features] = scaler.fit_transform(X[numerical_features])
 X_test[numerical_features] = scaler.transform(X_test[numerical_features])
+
 
 
 # K-Fold Cross Validation and LightGBM Model Training

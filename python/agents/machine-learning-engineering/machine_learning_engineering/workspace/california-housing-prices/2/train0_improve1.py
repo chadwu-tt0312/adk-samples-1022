@@ -58,17 +58,33 @@ def main():
         imputer = SimpleImputer(strategy="median")
         combined_df['total_bedrooms'] = imputer.fit_transform(combined_df[['total_bedrooms']])
 
+
     # Feature Engineering (example features)
     # Avoid division by zero by adding a small epsilon or handling NaNs after creation
     combined_df['households_safe'] = combined_df['households'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
     combined_df['total_rooms_safe'] = combined_df['total_rooms'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
+    # New: Add population_safe for rooms_per_person calculation
+    combined_df['population_safe'] = combined_df['population'].replace(0, 1) # Replace 0 with 1 to avoid division by zero
 
     combined_df['rooms_per_household'] = combined_df['total_rooms'] / combined_df['households_safe']
     combined_df['bedrooms_per_room'] = combined_df['total_bedrooms'] / combined_df['total_rooms_safe']
     combined_df['population_per_household'] = combined_df['population'] / combined_df['households_safe']
+    
+    # Targeted, domain-specific interaction terms and transformations
+    # 1. latitude * longitude for spatial relationships
+    combined_df['latitude_longitude'] = combined_df['latitude'] * combined_df['longitude']
+    
+    # 2. median_income * rooms_per_household to capture quality of life
+    combined_df['income_per_room_household'] = combined_df['median_income'] * combined_df['rooms_per_household']
+    
+    # 3. housing_median_age * median_income for value depreciation with income
+    combined_df['age_income_interaction'] = combined_df['housing_median_age'] * combined_df['median_income']
+    
+    # 4. rooms_per_person to better represent living space density
+    combined_df['rooms_per_person'] = combined_df['total_rooms'] / combined_df['population_safe']
 
     # Drop the safe columns used for calculation
-    combined_df = combined_df.drop(columns=['households_safe', 'total_rooms_safe'])
+    combined_df = combined_df.drop(columns=['households_safe', 'total_rooms_safe', 'population_safe'])
 
     # After feature engineering, there might be NaNs or infs if original values were zero and replaced with NaN
     # Replace inf/-inf with NaN and then impute
@@ -82,6 +98,7 @@ def main():
     for col in combined_df.columns:
         if combined_df[col].isnull().any():
             combined_df[col] = imputer_all_cols.fit_transform(combined_df[[col]])
+
 
 
     # Split back into processed train and test sets
