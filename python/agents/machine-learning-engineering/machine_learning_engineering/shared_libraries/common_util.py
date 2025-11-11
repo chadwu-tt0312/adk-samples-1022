@@ -15,10 +15,9 @@ def get_text_from_response(
   """Extracts text from response."""
   final_text = ""
   if response.content and response.content.parts:
-    num_parts = len(response.content.parts)
-    for i in range(num_parts):
-        if hasattr(response.content.parts[i], "text"):
-            final_text += response.content.parts[i].text
+    for part in response.content.parts:
+        if hasattr(part, "text") and part.text:
+            final_text += part.text
   return final_text
 
 

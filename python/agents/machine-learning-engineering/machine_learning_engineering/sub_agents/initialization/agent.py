@@ -227,9 +227,16 @@ def prepare_task(
     callback_context: callback_context_module.CallbackContext
 ) -> Optional[types.Content]:
     """Prepares things for the task."""
+    # Preserve task_name if it was set by the root agent
+    existing_task_name = callback_context.state.get("task_name")
+
     config_dict = dataclasses.asdict(config.CONFIG)
     for key in config_dict:
         callback_context.state[key] = config_dict[key]
+
+    if existing_task_name:
+        callback_context.state["task_name"] = existing_task_name
+
     callback_context.state["start_time"] = time.time()
     # fix randomness
     common_util.set_random_seed(callback_context.state["seed"])
@@ -237,7 +244,7 @@ def prepare_task(
     data_dir = callback_context.state.get("data_dir", "")
     task_description = open(
         os.path.join(data_dir, task_name, "task_description.txt"),
-        "r",
+        "r", encoding="utf-8"
     ).read()
     callback_context.state["task_description"] = task_description
     return None

@@ -1,0 +1,60 @@
+## Model name
+LightGBM (Light Gradient Boosting Machine)
+
+## Example Python code
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+import lightgbm as lgb
+from sklearn.metrics import accuracy_score
+
+# Load the dataset (assuming 'train.csv' is available in the same directory)
+try:
+    df = pd.read_csv('train.csv')
+except FileNotFoundError:
+    print("train.csv not found. Please ensure the Titanic dataset is in the working directory.")
+    exit()
+
+# --- Preprocessing ---
+# Drop columns that are not useful or have too many missing values
+df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+
+# Handle missing 'Age' values with median imputation
+df['Age'].fillna(df['Age'].median(), inplace=True)
+
+# Handle missing 'Embarked' values with the most frequent value (mode)
+df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+
+# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
+# LightGBM can handle categorical features directly if specified, but for simplicity
+# and consistency with the XGBoost example, we'll encode them numerically.
+le = LabelEncoder()
+df['Sex'] = le.fit_transform(df['Sex'])
+df['Embarked'] = le.fit_transform(df['Embarked'])
+
+# Define features (X) and target (y)
+X = df.drop('Survived', axis=1)
+y = df['Survived']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# --- Model Training ---
+# Initialize the LightGBM Classifier
+# Using common parameters for a good starting point
+model = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
+
+# Train the model
+model.fit(X_train, y_train)
+
+# --- Prediction and Evaluation ---
+y_pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, y_pred)
+
+print(f"LightGBM Model Accuracy: {accuracy:.4f}")
+
+# Example of making a prediction on new data (requires same preprocessing)
+# new_data = pd.DataFrame([{'Pclass': 3, 'Sex': 0, 'Age': 25, 'SibSp': 0, 'Parch': 0, 'Fare': 7.25, 'Embarked': 2}])
+# new_pred = model.predict(new_data)
+# print(f"Prediction for new data: {new_pred[0]}")
