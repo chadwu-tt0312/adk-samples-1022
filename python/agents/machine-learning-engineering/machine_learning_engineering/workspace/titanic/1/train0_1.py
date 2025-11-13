@@ -1,62 +1,74 @@
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
-import lightgbm as lgb
-from sklearn.metrics import accuracy_score
 import numpy as np
+import xgboost as xgb
+import lightgbm as lgb  # Import LightGBM
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-# Load the dataset from the specified directory
-df = pd.read_csv('./input/train.csv')
+# Load the Titanic dataset from the specified input directory
+train_df = pd.read_csv('./input/train.csv')
 
-# --- Preprocessing ---
-# Drop columns that are not useful or have too many missing values
-df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+# --- Preprocessing (Common to both models) ---
+# Drop columns that are not useful for prediction or require complex feature engineering for this simple example
+train_df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
 
-# Handle missing 'Age' values with median imputation
-df['Age'].fillna(df['Age'].median(), inplace=True)
+# Fill missing Age values with the median
+train_df['Age'].fillna(train_df['Age'].median(), inplace=True)
 
-# Handle missing 'Embarked' values with the most frequent value (mode)
-df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+# Fill missing Embarked values with the mode
+train_df['Embarked'].fillna(train_df['Embarked'].mode()[0], inplace=True)
 
-# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-le_sex = LabelEncoder()
-df['Sex'] = le_sex.fit_transform(df['Sex'])
+# Convert 'Sex' to numerical: 'male' to 0, 'female' to 1
+train_df['Sex'] = train_df['Sex'].map({'male': 0, 'female': 1})
 
-le_embarked = LabelEncoder()
-df['Embarked'] = le_embarked.fit_transform(df['Embarked'])
+# One-hot encode 'Embarked' and 'Pclass' categorical features
+# drop_first=True avoids multicollinearity, though not strictly necessary for simple models,
+# it's good practice for tree-based models and general ML.
+train_df = pd.get_dummies(train_df, columns=['Embarked', 'Pclass'], drop_first=True)
 
 # Define features (X) and target (y)
-X = df.drop('Survived', axis=1)
-y = df['Survived']
+X = train_df.drop('Survived', axis=1)
+y = train_df['Survived']
 
-# Split the data into training and testing sets to create a hold-out validation set
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Split data into training and validation sets
+# A test_size of 0.2 means 20% of the data will be used for validation
+# random_state ensures reproducibility of the split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # --- Model Training ---
-# Train the XGBoost Classifier (from base solution)
-xgb_model = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
-xgb_model.fit(X_train, y_train)
 
-# Train the LightGBM Classifier (from reference solution)
-lgb_model = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
-lgb_model.fit(X_train, y_train)
+# 1. Initialize and Train the XGBoost Classifier (from base solution)
+xgb_clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+xgb_clf.fit(X_train, y_train)
+
+# 2. Initialize and Train the LightGBM Classifier (from reference solution)
+lgb_clf = lgb.LGBMClassifier(objective='binary', random_state=42)
+lgb_clf.fit(X_train, y_train)
 
 # --- Prediction and Ensembling ---
-# Get prediction probabilities from both models
-xgb_preds_proba = xgb_model.predict_proba(X_test)[:, 1] # Probability of the positive class
-lgb_preds_proba = lgb_model.predict_proba(X_test)[:, 1] # Probability of the positive class
 
-# Simple ensemble: average the predicted probabilities
-ensembled_preds_proba = (xgb_preds_proba + lgb_preds_proba) / 2
+# Get prediction probabilities from XGBoost
+# We take the probability of the positive class (survival, which is class 1)
+y_pred_proba_xgb = xgb_clf.predict_proba(X_val)[:, 1]
 
-# Convert averaged probabilities to binary predictions using a 0.5 threshold
-ensembled_y_pred = (ensembled_preds_proba >= 0.5).astype(int)
+# Get prediction probabilities from LightGBM
+# We take the probability of the positive class (survival, which is class 1)
+y_pred_proba_lgb = lgb_clf.predict_proba(X_val)[:, 1]
+
+# Ensemble the predictions using a simple average of probabilities
+# Average the probabilities from both models
+y_pred_proba_ensemble = (y_pred_proba_xgb + y_pred_proba_lgb) / 2
+
+# Convert averaged probabilities to binary predictions (0 or 1)
+# A threshold of 0.5 is commonly used for binary classification
+y_pred_ensemble = (y_pred_proba_ensemble >= 0.5).astype(int)
 
 # --- Evaluation ---
-# Calculate accuracy of the ensembled predictions
-accuracy = accuracy_score(y_test, ensembled_y_pred)
 
-# Print the final validation performance
-print(f"Final Validation Performance: {accuracy:.4f}")
+# Evaluate accuracy of the ensembled model on the validation set
+accuracy_ensemble = accuracy_score(y_val, y_pred_ensemble)
+
+# Print the final validation performance in the required format
+print(f"Final Validation Performance: {accuracy_ensemble:.4f}")
+

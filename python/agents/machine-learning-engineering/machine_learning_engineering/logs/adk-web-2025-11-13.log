@@ -1,0 +1,193 @@
+ adk web 
+D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.venv\Lib\site-packages\google\adk\cli\fast_api.py:130: UserWarning: [EXPERIMENTAL] InMemoryCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+  credential_service = InMemoryCredentialService()
+D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.venv\Lib\site-packages\google\adk\auth\credential_service\in_memory_credential_service.py:33: UserWarning: [EXPERIMENTAL] BaseCredentialService: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+  super().__init__()
+INFO:     Started server process [3952]
+INFO:     Waiting for application startup.
+
++-----------------------------------------------------------------------------+
+| ADK Web Server started                                                      |
+|                                                                             |
+| For local testing, access at http://127.0.0.1:8000.                         |
++-----------------------------------------------------------------------------+
+
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:6412 - "GET / HTTP/1.1" 307 Temporary Redirect
+INFO:     127.0.0.1:6412 - "GET /dev-ui/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6412 - "GET /dev-ui/styles-NFETHFZB.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:4809 - "GET /dev-ui/chunk-EQDQRRRY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /dev-ui/main-FFZEKOTG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2795 - "GET /dev-ui/polyfills-B6TNHZQ6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /dev-ui/assets/config/runtime-config.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /list-apps?relative_path=./ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /dev-ui/assets/ADK-512-color.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /dev-ui/adk_favicon.svg HTTP/1.1" 200 OK
+2025-11-13 10:13:16,884 - INFO - adk_web_server.py:602 - New session created: 6bb43882-210b-42ee-a1e4-99b1433e702a
+INFO:     127.0.0.1:1571 - "POST /apps/machine_learning_engineering/users/user/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1571 - "GET /apps/machine_learning_engineering/eval_sets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2795 - "GET /apps/machine_learning_engineering/eval_results HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2795 - "GET /apps/machine_learning_engineering/users/user/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:2795 - "GET /apps/machine_learning_engineering/users/user/sessions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:1139 - "POST /run_sse HTTP/1.1" 200 OK
+2025-11-13 10:13:40,975 - INFO - envs.py:47 - Loaded .env file for machine_learning_engineering at D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.env
+2025-11-13 10:13:40,976 - INFO - envs.py:47 - Loaded .env file for machine_learning_engineering at D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.env
+2025-11-13 10:13:56,885 - INFO - agent_loader.py:127 - Found root_agent in machine_learning_engineering.agent
+D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.venv\Lib\site-packages\google\adk\cli\adk_web_server.py:476: UserWarning: [EXPERIMENTAL] App: This feature is experimental and may change or be removed in future versions without notice. It may introduce breaking changes at any time.
+  agentic_app = App(
+2025-11-13 10:13:56,906 - WARNING - runners.py:265 - App name mismatch detected. The runner is configured with app name "machine_learning_engineering", but the root agent was loaded from "D:\_Code\_GitHub\adk-samples-1022\python\agents\machine-learning-engineering\.venv\Lib\site-packages\google\adk\agents", which implies app name "agents".
+2025-11-13 10:13:56,928 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:13:58,840 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:13:58,842 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:05,485 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:05,505 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:05,508 - WARNING - types.py:5972 - Warning: there are non-text parts in the response: ['thought_signature', 'function_call'], returning concatenated text result from text parts. Check the full candidates.content.parts accessor to get the full model response.
+2025-11-13 10:14:06,719 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:07,078 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:07,079 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:09,544 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:09,554 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:09,592 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:09,954 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:09,955 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:09,960 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:10,313 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:10,315 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:23,556 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:23,559 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:23,574 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:23,912 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:23,913 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:24,585 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:24,591 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:24,593 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:24,982 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:24,983 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:33,547 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:33,550 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:33,561 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:33,891 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:33,892 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:35,424 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:35,438 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:49,377 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:49,716 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:49,716 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:14:49,717 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:14:49,719 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:14:54,028 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:14:54,431 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:14:54,431 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:15:01,355 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:15:01,376 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:15:04,405 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:15:04,407 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:15:06,007 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:15:07,566 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:15:07,566 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:15:07,686 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:15:08,878 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:15:08,878 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:15:19,900 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:15:19,907 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:15:26,668 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:15:26,669 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:15:29,942 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:15:30,364 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:15:30,364 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:15:30,366 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:15:30,737 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:15:30,737 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:00,712 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:00,714 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:02,151 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:02,506 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:02,506 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:04,643 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:04,644 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:06,071 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:06,423 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:06,423 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:07,368 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:07,378 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:07,380 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:07,735 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:07,735 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:11,567 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:11,576 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:11,578 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:11,922 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:11,922 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:14,797 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:14,807 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:14,810 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:15,186 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:15,186 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:18,234 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:18,244 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:19,663 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:20,003 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:20,004 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:30,588 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:30,596 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:30,602 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:30,947 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:30,947 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:32,577 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:32,588 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:32,592 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:32,932 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:32,933 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:34,426 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:34,434 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:34,444 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:34,829 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:34,829 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:16:35,658 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:35,660 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:47,767 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:16:47,777 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:16:47,781 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:16:48,118 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:16:48,118 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:17:02,848 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:17:02,856 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:17:04,401 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:17:06,122 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:17:06,124 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:17:17,085 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:17:17,093 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:17:17,096 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:17:17,529 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:17:17,530 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:17:29,550 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:17:29,561 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:17:31,106 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:17:32,100 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:17:32,100 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:17:50,428 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:17:50,441 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:17:50,450 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:17:51,926 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:17:51,926 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:18:05,340 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:18:05,356 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:18:06,890 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:18:07,250 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:18:07,251 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:18:20,440 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:18:20,453 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:18:20,461 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:18:20,816 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:18:20,816 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:18:50,397 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:18:50,401 - INFO - google_llm.py:186 - Response received from the model.
+2025-11-13 10:18:52,071 - INFO - _api_client.py:626 - The project/location from the environment variables will take precedence over the API key from the environment variables.
+2025-11-13 10:18:52,414 - INFO - google_llm.py:133 - Sending out request, model: gemini-2.5-flash, backend: GoogleLLMVariant.VERTEX_AI, stream: False
+2025-11-13 10:18:52,414 - INFO - models.py:6756 - AFC is enabled with max remote calls: 10.
+2025-11-13 10:19:21,045 - INFO - _client.py:1740 - HTTP Request: POST https://us-central1-aiplatform.googleapis.com/v1beta1/projects/gen-lang-client-0331781710/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent "HTTP/1.1 200 OK"
+2025-11-13 10:19:21,060 - INFO - google_llm.py:186 - Response received from the model.
+INFO:     127.0.0.1:1139 - "GET /apps/machine_learning_engineering/users/user/sessions/6bb43882-210b-42ee-a1e4-99b1433e702a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:3701 - "GET /debug/trace/session/6bb43882-210b-42ee-a1e4-99b1433e702a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:6394 - "GET /apps/machine_learning_engineering/users/user/sessions/6bb43882-210b-42ee-a1e4-99b1433e702a HTTP/1.1" 200 OK

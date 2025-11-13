@@ -1,153 +1,104 @@
 
 import pandas as pd
 import numpy as np
-import os
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
-import lightgbm as lgb
 from sklearn.metrics import accuracy_score
 
-# --- Standardized Data Loading and Initial Split ---
-# Load the raw dataset
-raw_df = pd.read_csv('./input/train.csv')
+# --- Function encapsulating Solution 1's logic ---
+def run_solution_1_logic():
+    # Load the Titanic dataset from the specified input directory
+    train_df = pd.read_csv('./input/train.csv')
 
-# Define target
-y_raw_target = raw_df['Survived']
+    # Preprocessing
+    # Drop columns that are not useful for prediction or require complex feature engineering for this simple example
+    train_df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
 
-# Define features (before any solution-specific preprocessing)
-# Keep original columns for now, they will be dropped/processed within functions
-X_raw_data = raw_df.drop('Survived', axis=1)
+    # Fill missing Age values with the median
+    train_df['Age'].fillna(train_df['Age'].median(), inplace=True)
 
-# Standardize the validation data generation
-X_train_split_raw, X_val_split_raw, y_train_split, y_val_split = train_test_split(
-    X_raw_data, y_raw_target, test_size=0.2, random_state=42
-)
+    # Fill missing Embarked values with the mode
+    train_df['Embarked'].fillna(train_df['Embarked'].mode()[0], inplace=True)
 
-# --- Solution 1 Function Definition ---
-def get_solution1_ensemble_proba(X_train, y_train, X_val):
-    """
-    Applies preprocessing and trains models from Python Solution 1,
-    then returns ensembled probabilities for the validation set.
-    """
-    # Make copies to avoid modifying original splits
-    df_train_s1 = X_train.copy()
-    df_val_s1 = X_val.copy()
+    # Convert 'Sex' to numerical: 'male' to 0, 'female' to 1
+    train_df['Sex'] = train_df['Sex'].map({'male': 0, 'female': 1})
 
-    # Preprocessing consistent with Solution 1
-    # Drop columns
-    df_train_s1 = df_train_s1.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
-    df_val_s1 = df_val_s1.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+    # One-hot encode 'Embarked' and 'Pclass' categorical features
+    train_df = pd.get_dummies(train_df, columns=['Embarked', 'Pclass'], drop_first=True)
 
-    # Handle missing 'Age' values with median imputation (from training data)
-    age_median_s1 = df_train_s1['Age'].median()
-    df_train_s1['Age'].fillna(age_median_s1, inplace=True)
-    df_val_s1['Age'].fillna(age_median_s1, inplace=True)
+    # Define features (X) and target (y)
+    X = train_df.drop('Survived', axis=1)
+    y = train_df['Survived']
 
-    # Handle missing 'Embarked' values with the most frequent value (mode from training data)
-    embarked_mode_s1 = df_train_s1['Embarked'].mode()[0]
-    df_train_s1['Embarked'].fillna(embarked_mode_s1, inplace=True)
-    df_val_s1['Embarked'].fillna(embarked_mode_s1, inplace=True)
+    # Split data into training and validation sets
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-    # Fit on training data, transform both
-    le_sex_s1 = LabelEncoder()
-    df_train_s1['Sex'] = le_sex_s1.fit_transform(df_train_s1['Sex'])
-    df_val_s1['Sex'] = le_sex_s1.transform(df_val_s1['Sex'])
+    # Initialize the XGBoost Classifier
+    xgb_clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
 
-    le_embarked_s1 = LabelEncoder()
-    df_train_s1['Embarked'] = le_embarked_s1.fit_transform(df_train_s1['Embarked'])
-    df_val_s1['Embarked'] = le_embarked_s1.transform(df_val_s1['Embarked'])
+    # Train the XGBoost model on the training data
+    xgb_clf.fit(X_train, y_train)
 
-    # Train XGBoost Classifier
-    xgb_model_s1 = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
-    xgb_model_s1.fit(df_train_s1, y_train)
+    return xgb_clf, X_val, y_val
 
-    # Train LightGBM Classifier
-    lgb_model_s1 = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
-    lgb_model_s1.fit(df_train_s1, y_train)
+# --- Function encapsulating Solution 2's logic ---
+def run_solution_2_logic():
+    # Load data from the specified input directory
+    train_df = pd.read_csv('./input/train.csv')
 
-    # Get prediction probabilities from both models
-    xgb_preds_proba_s1 = xgb_model_s1.predict_proba(df_val_s1)[:, 1]
-    lgb_preds_proba_s1 = lgb_model_s1.predict_proba(df_val_s1)[:, 1]
+    # Separate target variable before preprocessing
+    y_sol = train_df['Survived']
+    X_sol = train_df.drop('Survived', axis=1)
 
-    # Simple ensemble: average the predicted probabilities
-    ensembled_preds_proba_s1 = (xgb_preds_proba_s1 + lgb_preds_proba_s1) / 2
+    # Simple Preprocessing (handle missing values, encode categorical features)
+    # Fill missing 'Age' values with the median of the training set
+    X_sol['Age'].fillna(X_sol['Age'].median(), inplace=True)
 
-    return ensembled_preds_proba_s1
+    # Fill missing 'Fare' values with the median of the training set
+    # (Note: For the Titanic train.csv, Fare typically has no missing values, but this is part of Sol2's original logic)
+    X_sol['Fare'].fillna(X_sol['Fare'].median(), inplace=True)
 
-# --- Solution 2 Function Definition ---
-def get_solution2_proba(X_train, y_train, X_val):
-    """
-    Applies preprocessing and trains the model from Python Solution 2,
-    then returns probabilities for the validation set.
-    """
-    # Make copies to avoid modifying original splits
-    df_train_s2 = X_train.copy()
-    df_val_s2 = X_val.copy()
+    # Fill missing 'Embarked' values with the mode of the training set
+    X_sol['Embarked'].fillna(X_sol['Embarked'].mode()[0], inplace=True)
 
-    # Preprocessing consistent with Solution 2, applied to combined data for consistent encoding
-    # Combine X_train and X_val to ensure consistent feature engineering (especially for get_dummies)
-    # The original solution 2 combines train and test for pre-processing.
-    # Here, we combine X_train_split and X_val_split for consistency.
-    all_data_s2 = pd.concat([df_train_s2, df_val_s2], ignore_index=True)
-    
-    # Drop irrelevant columns
-    all_data_s2.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+    # Map 'Sex' to numerical values
+    X_sol['Sex'] = X_sol['Sex'].map({'male': 0, 'female': 1})
 
-    # Fill missing 'Age' with median (calculated from combined data as per original S2 logic)
-    age_median_s2 = all_data_s2['Age'].median()
-    all_data_s2['Age'].fillna(age_median_s2, inplace=True)
+    # One-hot encode 'Embarked' and 'Pclass' categorical features
+    X_sol = pd.get_dummies(X_sol, columns=['Embarked', 'Pclass'], drop_first=True)
 
-    # Fill missing 'Fare' with median (calculated from combined data as per original S2 logic)
-    fare_median_s2 = all_data_s2['Fare'].median()
-    all_data_s2['Fare'].fillna(fare_median_s2, inplace=True)
+    # Drop unnecessary columns (Name, Ticket, Cabin, PassengerId for training)
+    X_sol.drop(['Name', 'Ticket', 'Cabin', 'PassengerId'], axis=1, inplace=True)
 
-    # Fill missing 'Embarked' with mode (calculated from combined data as per original S2 logic)
-    embarked_mode_s2 = all_data_s2['Embarked'].mode()[0]
-    all_data_s2['Embarked'].fillna(embarked_mode_s2, inplace=True)
-
-    # Encode categorical features
-    le_sex_s2 = LabelEncoder()
-    all_data_s2['Sex'] = le_sex_s2.fit_transform(all_data_s2['Sex'])
-    
-    # One-hot encode 'Embarked' and 'Pclass'
-    all_data_s2 = pd.get_dummies(all_data_s2, columns=['Embarked', 'Pclass'], drop_first=True)
-
-    # Split back into processed train and validation sets
-    X_train_processed_s2 = all_data_s2.iloc[:len(df_train_s2)]
-    X_val_processed_s2 = all_data_s2.iloc[len(df_train_s2):]
+    # Split the data into training and validation sets
+    X_train, X_val, y_train, y_val = train_test_split(X_sol, y_sol, test_size=0.2, random_state=42)
 
     # Initialize and train XGBoost Classifier
-    model_s2 = XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
-    model_s2.fit(X_train_processed_s2, y_train)
+    model = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+    model.fit(X_train, y_train)
 
-    # Make prediction probabilities on the validation set
-    solution2_preds_proba = model_s2.predict_proba(X_val_processed_s2)[:, 1]
+    return model, X_val, y_val
 
-    return solution2_preds_proba
+# --- Main Ensemble Implementation ---
 
-# --- Ensemble Plan Implementation ---
+# Run Solution 1 to get its trained model and validation data
+xgb_clf_sol1, X_val_sol1, y_val_sol1 = run_solution_1_logic()
 
-# 1. Standardize Validation Data Generation (done at the beginning of the script)
+# Run Solution 2 to get its trained model and validation data
+xgb_clf_sol2, X_val_sol2, y_val_sol2 = run_solution_2_logic()
 
-# 2. Generate Binary Predictions from Solution 1
-solution1_preds_proba = get_solution1_ensemble_proba(X_train_split_raw, y_train_split, X_val_split_raw)
-s1_binary_preds = (solution1_preds_proba >= 0.5).astype(int)
+# Get binary predictions from each model on their respective validation sets
+y_pred_sol1 = xgb_clf_sol1.predict(X_val_sol1)
+y_pred_sol2 = xgb_clf_sol2.predict(X_val_sol2)
 
-# 3. Generate Binary Predictions from Solution 2
-solution2_preds_proba = get_solution2_proba(X_train_split_raw, y_train_split, X_val_split_raw)
-s2_binary_preds = (solution2_preds_proba >= 0.5).astype(int)
+# Apply the ensemble plan's "OR" logic:
+# if either model predicts 1, the ensemble predicts 1
+ensemble_predictions = (y_pred_sol1 | y_pred_sol2).astype(int)
 
-# 4. Combine Binary Predictions using Hard Voting with Solution 1 as Tie-Breaker
-# As per the ensemble plan:
-# - If s1_binary_preds and s2_binary_preds agree, the ensemble prediction is that agreed-upon value.
-# - If s1_binary_preds and s2_binary_preds disagree, the ensemble prediction defaults to s1_binary_preds.
-# This logic simplifies to always taking s1_binary_preds.
-ensembled_y_pred_final = s1_binary_preds
+# Evaluate the accuracy of the ensemble
+# Since both solutions use identical preprocessing and train_test_split parameters,
+# X_val and y_val from both runs are effectively the same.
+final_accuracy = accuracy_score(y_val_sol1, ensemble_predictions)
 
-# 5. Evaluate Ensembled Performance
-accuracy = accuracy_score(y_val_split, ensembled_y_pred_final)
-
-# Print the final performance metric
-print(f"Final Validation Performance: {accuracy}")
+# Print the final validation performance in the required format
+print(f"Final Validation Performance: {final_accuracy:.4f}")

@@ -1,60 +1,60 @@
 ## Model name
-LightGBM (Light Gradient Boosting Machine)
+XGBoost
 
 ## Example Python code
 import pandas as pd
 import numpy as np
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-import lightgbm as lgb
 from sklearn.metrics import accuracy_score
 
-# Load the dataset (assuming 'train.csv' is available in the same directory)
+# Load the Titanic dataset (assuming 'train.csv' is available)
 try:
-    df = pd.read_csv('train.csv')
+    train_df_xgb = pd.read_csv('train.csv')
 except FileNotFoundError:
-    print("train.csv not found. Please ensure the Titanic dataset is in the working directory.")
-    exit()
+    print("train.csv not found. Please ensure the file is in the correct directory.")
+    # Create a dummy DataFrame for demonstration if file not found
+    data = {
+        'PassengerId': range(1, 892),
+        'Survived': np.random.randint(0, 2, 891),
+        'Pclass': np.random.randint(1, 4, 891),
+        'Name': ['Name ' + str(i) for i in range(891)],
+        'Sex': np.random.choice(['male', 'female'], 891),
+        'Age': np.random.uniform(1, 80, 891),
+        'SibSp': np.random.randint(0, 5, 891),
+        'Parch': np.random.randint(0, 5, 891),
+        'Ticket': ['TIC' + str(i) for i in range(891)],
+        'Fare': np.random.uniform(0, 500, 891),
+        'Cabin': [np.random.choice(['C23', 'B45', np.nan]) for _ in range(891)],
+        'Embarked': np.random.choice(['S', 'C', 'Q', np.nan], 891)
+    }
+    train_df_xgb = pd.DataFrame(data)
 
-# --- Preprocessing ---
-# Drop columns that are not useful or have too many missing values
-df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+# Preprocessing (similar to LightGBM for consistency and simplicity)
+train_df_xgb.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
 
-# Handle missing 'Age' values with median imputation
-df['Age'].fillna(df['Age'].median(), inplace=True)
+train_df_xgb['Age'].fillna(train_df_xgb['Age'].median(), inplace=True)
+train_df_xgb['Embarked'].fillna(train_df_xgb['Embarked'].mode()[0], inplace=True)
 
-# Handle missing 'Embarked' values with the most frequent value (mode)
-df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+train_df_xgb['Sex'] = train_df_xgb['Sex'].map({'male': 0, 'female': 1})
 
-# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-# LightGBM can handle categorical features directly if specified, but for simplicity
-# and consistency with the XGBoost example, we'll encode them numerically.
-le = LabelEncoder()
-df['Sex'] = le.fit_transform(df['Sex'])
-df['Embarked'] = le.fit_transform(df['Embarked'])
+train_df_xgb = pd.get_dummies(train_df_xgb, columns=['Embarked', 'Pclass'], drop_first=True)
 
 # Define features (X) and target (y)
-X = df.drop('Survived', axis=1)
-y = df['Survived']
+X_xgb = train_df_xgb.drop('Survived', axis=1)
+y_xgb = train_df_xgb['Survived']
 
-# Split the data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Split data into training and testing sets
+X_train_xgb, X_test_xgb, y_train_xgb, y_test_xgb = train_test_split(X_xgb, y_xgb, test_size=0.2, random_state=42)
 
-# --- Model Training ---
-# Initialize the LightGBM Classifier
-# Using common parameters for a good starting point
-model = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
+# Initialize and train the XGBoost Classifier
+xgb_clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+xgb_clf.fit(X_train_xgb, y_train_xgb)
 
-# Train the model
-model.fit(X_train, y_train)
+# Make predictions
+y_pred_xgb = xgb_clf.predict(X_test_xgb)
 
-# --- Prediction and Evaluation ---
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-
-print(f"LightGBM Model Accuracy: {accuracy:.4f}")
-
-# Example of making a prediction on new data (requires same preprocessing)
-# new_data = pd.DataFrame([{'Pclass': 3, 'Sex': 0, 'Age': 25, 'SibSp': 0, 'Parch': 0, 'Fare': 7.25, 'Embarked': 2}])
-# new_pred = model.predict(new_data)
-# print(f"Prediction for new data: {new_pred[0]}")
+# Evaluate accuracy
+accuracy_xgb = accuracy_score(y_test_xgb, y_pred_xgb)
+print(f"XGBoost Model Accuracy: {accuracy_xgb:.4f}")

@@ -1,59 +1,66 @@
 ## Model name
-XGBoost (Extreme Gradient Boosting)
+LightGBM
 
 ## Example Python code
 import pandas as pd
 import numpy as np
+import lightgbm as lgb
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
 
-# Load the dataset (assuming 'train.csv' is available in the same directory)
+# Load the Titanic dataset (assuming 'train.csv' is available)
 try:
-    df = pd.read_csv('train.csv')
+    train_df = pd.read_csv('train.csv')
 except FileNotFoundError:
-    print("train.csv not found. Please ensure the Titanic dataset is in the working directory.")
-    exit()
+    print("train.csv not found. Please ensure the file is in the correct directory.")
+    # Create a dummy DataFrame for demonstration if file not found
+    data = {
+        'PassengerId': range(1, 892),
+        'Survived': np.random.randint(0, 2, 891),
+        'Pclass': np.random.randint(1, 4, 891),
+        'Name': ['Name ' + str(i) for i in range(891)],
+        'Sex': np.random.choice(['male', 'female'], 891),
+        'Age': np.random.uniform(1, 80, 891),
+        'SibSp': np.random.randint(0, 5, 891),
+        'Parch': np.random.randint(0, 5, 891),
+        'Ticket': ['TIC' + str(i) for i in range(891)],
+        'Fare': np.random.uniform(0, 500, 891),
+        'Cabin': [np.random.choice(['C23', 'B45', np.nan]) for _ in range(891)],
+        'Embarked': np.random.choice(['S', 'C', 'Q', np.nan], 891)
+    }
+    train_df = pd.DataFrame(data)
 
-# --- Preprocessing ---
-# Drop columns that are not useful or have too many missing values
-df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+# Preprocessing
+# Drop columns that are not useful for prediction or require complex feature engineering for this simple example
+train_df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
 
-# Handle missing 'Age' values with median imputation
-df['Age'].fillna(df['Age'].median(), inplace=True)
+# Fill missing Age values with the median
+train_df['Age'].fillna(train_df['Age'].median(), inplace=True)
 
-# Handle missing 'Embarked' values with the most frequent value (mode)
-df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+# Fill missing Embarked values with the mode
+train_df['Embarked'].fillna(train_df['Embarked'].mode()[0], inplace=True)
 
-# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-# For more robust handling, One-Hot Encoding is often preferred, but LabelEncoder is simpler here.
-le = LabelEncoder()
-df['Sex'] = le.fit_transform(df['Sex'])
-df['Embarked'] = le.fit_transform(df['Embarked'])
+# Convert 'Sex' to numerical
+train_df['Sex'] = train_df['Sex'].map({'male': 0, 'female': 1})
+
+# One-hot encode 'Embarked' and 'Pclass'
+train_df = pd.get_dummies(train_df, columns=['Embarked', 'Pclass'], drop_first=True)
 
 # Define features (X) and target (y)
-X = df.drop('Survived', axis=1)
-y = df['Survived']
+X = train_df.drop('Survived', axis=1)
+y = train_df['Survived']
 
-# Split the data into training and testing sets
+# Split data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# --- Model Training ---
-# Initialize the XGBoost Classifier
-# Using common parameters for a good starting point
-model = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+# Initialize and train the LightGBM Classifier
+lgb_clf = lgb.LGBMClassifier(objective='binary', random_state=42)
+lgb_clf.fit(X_train, y_train)
 
-# Train the model
-model.fit(X_train, y_train)
+# Make predictions
+y_pred_lgb = lgb_clf.predict(X_test)
 
-# --- Prediction and Evaluation ---
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-
-print(f"XGBoost Model Accuracy: {accuracy:.4f}")
-
-# Example of making a prediction on new data (requires same preprocessing)
-# new_data = pd.DataFrame([{'Pclass': 3, 'Sex': 0, 'Age': 25, 'SibSp': 0, 'Parch': 0, 'Fare': 7.25, 'Embarked': 2}])
-# new_pred = model.predict(new_data)
-# print(f"Prediction for new data: {new_pred[0]}")
+# Evaluate accuracy
+accuracy_lgb = accuracy_score(y_test, y_pred_lgb)
+print(f"LightGBM Model Accuracy: {accuracy_lgb:.4f}")

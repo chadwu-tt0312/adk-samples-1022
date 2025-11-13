@@ -1,58 +1,57 @@
 
 import pandas as pd
 import numpy as np
-import os
+import lightgbm as lgb
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from lightgbm import LGBMClassifier
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import LabelEncoder
 
-# Load data from the specified ./input directory
-train_df = pd.read_csv(os.path.join('input', 'train.csv'))
-test_df = pd.read_csv(os.path.join('input', 'test.csv'))
+# Load data from the specified input directory
+train_df = pd.read_csv('./input/train.csv')
 
-# Combine for preprocessing
-# Drop 'Survived' from train_df before concatenation
-all_data = pd.concat([train_df.drop('Survived', axis=1), test_df], ignore_index=True)
+# Separate target variable before preprocessing
+y = train_df['Survived']
+X = train_df.drop('Survived', axis=1)
 
 # Simple Preprocessing
-# Drop irrelevant columns
-all_data.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+# Fill missing 'Age' values with the median of the training set
+X['Age'].fillna(X['Age'].median(), inplace=True)
 
-# Fill missing 'Age' with median
-all_data['Age'].fillna(all_data['Age'].median(), inplace=True)
+# Fill missing 'Fare' values with the median of the training set
+X['Fare'].fillna(X['Fare'].median(), inplace=True)
 
-# Fill missing 'Fare' with median (relevant for test_df primarily, but good practice for combined data)
-all_data['Fare'].fillna(all_data['Fare'].median(), inplace=True)
+# Fill missing 'Embarked' values with the mode of the training set
+X['Embarked'].fillna(X['Embarked'].mode()[0], inplace=True)
 
-# Fill missing 'Embarked' with mode
-all_data['Embarked'].fillna(all_data['Embarked'].mode()[0], inplace=True)
-
-# Encode categorical features
+# Label encode 'Sex' and 'Embarked'
 le = LabelEncoder()
-all_data['Sex'] = le.fit_transform(all_data['Sex'])
-# One-hot encode 'Embarked' and 'Pclass'
-all_data = pd.get_dummies(all_data, columns=['Embarked', 'Pclass'], drop_first=True)
+X['Sex'] = le.fit_transform(X['Sex'])
+X['Embarked'] = le.fit_transform(X['Embarked'])
 
-# Split back into train and test sets for model training and final predictions
-X_train_processed = all_data.iloc[:len(train_df)]
-X_test_processed = all_data.iloc[len(train_df):]
-y_train = train_df['Survived']
+# Drop unnecessary columns (Name, Ticket, Cabin, PassengerId for training)
+X.drop(['Name', 'Ticket', 'Cabin', 'PassengerId'], axis=1, inplace=True)
 
-# Train-test split for validation using the processed training data
-X_train_model, X_val_model, y_train_model, y_val_model = train_test_split(
-    X_train_processed, y_train, test_size=0.2, random_state=42
-)
+# Convert categorical columns to 'category' dtype for LightGBM
+# LightGBM can efficiently handle categorical features when specified
+for col in ['Sex', 'Pclass', 'Embarked']:
+    X[col] = X[col].astype('category')
+
+# Split the data into training and validation sets
+# Using a 80/20 split for training and validation, with a fixed random_state for reproducibility
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Initialize and train LightGBM Classifier
-model = LGBMClassifier(random_state=42, verbose=-1) # verbose=-1 to suppress warnings
-model.fit(X_train_model, y_train_model)
+# Using 'binary' objective for binary classification
+# random_state for reproducibility
+model = lgb.LGBMClassifier(objective='binary', random_state=42)
+model.fit(X_train, y_train)
 
 # Make predictions on the validation set
-y_pred_val = model.predict(X_val_model)
+y_pred = model.predict(X_val)
 
-# Evaluate model using accuracy as the metric
-accuracy = accuracy_score(y_val_model, y_pred_val)
+# Calculate the accuracy score on the validation set
+# Accuracy is a suitable evaluation metric for this task as requested.
+accuracy = accuracy_score(y_val, y_pred)
 
-# Print the final performance metric in the required format
-print(f"Final Validation Performance: {accuracy}")
+# Print the final validation performance in the required format
+print(f'Final Validation Performance: {accuracy:.4f}')

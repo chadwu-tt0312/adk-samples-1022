@@ -1,89 +1,67 @@
 
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
-import lightgbm as lgb
-from sklearn.metrics import accuracy_score
 import numpy as np
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-# Load the dataset from the specified directory
-df = pd.read_csv('./input/train.csv')
+# Load the Titanic dataset from the specified input directory
 
-# --- Preprocessing ---
-# Drop columns that are not useful or have too many missing values
-df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
-
-
-from sklearn.impute import KNNImputer
 import pandas as pd
 
-# Select relevant columns for KNN imputation, including 'Age' itself
-# The plan specifies 'Pclass', 'Sex', and 'SibSp' as features to leverage.
-imputation_features = ['Pclass', 'Sex', 'SibSp', 'Age']
-df_for_knn = df[imputation_features].copy()
+train_df = pd.read_csv('./input/train.csv')
 
-# Ensure 'Sex' is numerical for the KNNImputer.
-# If 'Sex' is an object type (e.g., 'male', 'female' strings), map it to numerical values.
-# This conversion is done on a temporary DataFrame to avoid modifying the original 'Sex' column directly
-# and ensures the imputer receives numerical data without creating new dummy columns in the main DataFrame.
-if df_for_knn['Sex'].dtype == 'object':
-    df_for_knn['Sex'] = df_for_knn['Sex'].map({'male': 0, 'female': 1})
-    # It's good practice to handle potential NaNs if other unexpected categories were present,
-    # but for typical Titanic datasets, 'male'/'female' covers most cases.
+# Preprocessing
+# Drop columns that are not useful for prediction or require complex feature engineering for this simple example
+# Keep 'Cabin' for feature extraction, but drop 'PassengerId', 'Name', 'Ticket'
+train_df.drop(['PassengerId', 'Name', 'Ticket'], axis=1, inplace=True)
 
-# Initialize KNNImputer. n_neighbors can be tuned, 5 is a common default.
-knn_imputer = KNNImputer(n_neighbors=5)
+# Extract 'Deck' information from 'Cabin'
+# Fill missing 'Cabin' values with 'Unknown' and then take the first letter
+train_df['Deck'] = train_df['Cabin'].fillna('Unknown').astype(str).str[0]
+# Drop the original 'Cabin' column as 'Deck' has been extracted
+train_df.drop('Cabin', axis=1, inplace=True)
 
-# Apply KNN imputation to the selected features.
-# The imputer returns a numpy array.
-imputed_data = knn_imputer.fit_transform(df_for_knn)
+# Fill missing Embarked values with the mode
+train_df['Embarked'].fillna(train_df['Embarked'].mode()[0], inplace=True)
 
-# Update the 'Age' column in the original DataFrame with the newly imputed values.
-# The imputed_data array maintains the column order from df_for_knn.
-df['Age'] = pd.DataFrame(imputed_data, columns=imputation_features, index=df_for_knn.index)['Age']
+# Convert 'Sex' to numerical: 'male' to 0, 'female' to 1
+train_df['Sex'] = train_df['Sex'].map({'male': 0, 'female': 1})
 
+# Refine Age imputation strategy: fill missing 'Age' values with the median of their respective 'Pclass' and 'Sex' groups
+train_df['Age'] = train_df.groupby(['Pclass', 'Sex'])['Age'].transform(lambda x: x.fillna(x.median()))
 
-# Handle missing 'Embarked' values with the most frequent value (mode)
-df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
-
-# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-le_sex = LabelEncoder()
-df['Sex'] = le_sex.fit_transform(df['Sex'])
-
-le_embarked = LabelEncoder()
-df['Embarked'] = le_embarked.fit_transform(df['Embarked'])
+# One-hot encode 'Embarked', 'Pclass', and the new 'Deck' categorical features
+# drop_first=True avoids multicollinearity, though not strictly necessary for simple models,
+# it's good practice for tree-based models and general ML.
+train_df = pd.get_dummies(train_df, columns=['Embarked', 'Pclass', 'Deck'], drop_first=True)
 
 # Define features (X) and target (y)
-X = df.drop('Survived', axis=1)
-y = df['Survived']
+X = train_df.drop('Survived', axis=1)
+y = train_df['Survived']
 
-# Split the data into training and testing sets to create a hold-out validation set
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# --- Model Training ---
-# Train the XGBoost Classifier (from base solution)
-xgb_model = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
-xgb_model.fit(X_train, y_train)
+# Split data into training and validation sets
+# A test_size of 0.2 means 20% of the data will be used for validation
+# random_state ensures reproducibility of the split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train the LightGBM Classifier (from reference solution)
-lgb_model = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
-lgb_model.fit(X_train, y_train)
+# Initialize the XGBoost Classifier
+# objective='binary:logistic' for binary classification (survival prediction)
+# eval_metric='logloss' is a common metric for binary classification problems in XGBoost
+# use_label_encoder=False suppresses a future deprecation warning
+# random_state for reproducibility
+xgb_clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
 
-# --- Prediction and Ensembling ---
-# Get prediction probabilities from both models
-xgb_preds_proba = xgb_model.predict_proba(X_test)[:, 1] # Probability of the positive class
-lgb_preds_proba = lgb_model.predict_proba(X_test)[:, 1] # Probability of the positive class
+# Train the XGBoost model on the training data
+xgb_clf.fit(X_train, y_train)
 
-# Simple ensemble: average the predicted probabilities
-ensembled_preds_proba = (xgb_preds_proba + lgb_preds_proba) / 2
+# Make predictions on the validation set
+y_pred_xgb = xgb_clf.predict(X_val)
 
-# Convert averaged probabilities to binary predictions using a 0.5 threshold
-ensembled_y_pred = (ensembled_preds_proba >= 0.5).astype(int)
+# Evaluate accuracy on the validation set
+# Accuracy is a suitable metric for this balanced binary classification task
+accuracy_xgb = accuracy_score(y_val, y_pred_xgb)
 
-# --- Evaluation ---
-# Calculate accuracy of the ensembled predictions
-accuracy = accuracy_score(y_test, ensembled_y_pred)
-
-# Print the final validation performance
-print(f"Final Validation Performance: {accuracy:.4f}")
+# Print the final validation performance in the required format
+print(f"Final Validation Performance: {accuracy_xgb:.4f}")

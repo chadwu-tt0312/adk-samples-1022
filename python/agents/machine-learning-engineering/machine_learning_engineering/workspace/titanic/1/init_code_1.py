@@ -1,52 +1,53 @@
 
 import pandas as pd
+import numpy as np
+import lightgbm as lgb
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
 
-# Load the dataset from the specified directory
-df = pd.read_csv('./input/train.csv')
+# Load the Titanic dataset from the specified input directory
+train_df = pd.read_csv('./input/train.csv')
 
-# --- Preprocessing ---
-# Drop columns that are not useful or have too many missing values
-df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+# Preprocessing
+# Drop columns that are not useful for prediction or require complex feature engineering for this simple example
+train_df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
 
-# Handle missing 'Age' values with median imputation
-df['Age'].fillna(df['Age'].median(), inplace=True)
+# Fill missing Age values with the median
+train_df['Age'].fillna(train_df['Age'].median(), inplace=True)
 
-# Handle missing 'Embarked' values with the most frequent value (mode)
-df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+# Fill missing Embarked values with the mode
+train_df['Embarked'].fillna(train_df['Embarked'].mode()[0], inplace=True)
 
-# Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-le_sex = LabelEncoder()
-df['Sex'] = le_sex.fit_transform(df['Sex'])
+# Convert 'Sex' to numerical: 'male' to 0, 'female' to 1
+train_df['Sex'] = train_df['Sex'].map({'male': 0, 'female': 1})
 
-le_embarked = LabelEncoder()
-df['Embarked'] = le_embarked.fit_transform(df['Embarked'])
+# One-hot encode 'Embarked' and 'Pclass' categorical features
+# drop_first=True avoids multicollinearity
+train_df = pd.get_dummies(train_df, columns=['Embarked', 'Pclass'], drop_first=True)
 
 # Define features (X) and target (y)
-X = df.drop('Survived', axis=1)
-y = df['Survived']
+X = train_df.drop('Survived', axis=1)
+y = train_df['Survived']
 
-# Split the data into training and testing sets to create a hold-out validation set
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Split data into training and validation sets
+# A test_size of 0.2 means 20% of the data will be used for validation
+# random_state ensures reproducibility of the split
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# --- Model Training ---
-# Initialize the XGBoost Classifier
-# Using common parameters for a good starting point as per the model description
-# use_label_encoder=False is used to suppress a future deprecation warning for XGBoost
-model = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+# Initialize the LightGBM Classifier
+# objective='binary' for binary classification (survival prediction)
+# random_state for reproducibility
+lgb_clf = lgb.LGBMClassifier(objective='binary', random_state=42)
 
-# Train the model
-model.fit(X_train, y_train)
+# Train the LightGBM model on the training data
+lgb_clf.fit(X_train, y_train)
 
-# --- Prediction and Evaluation ---
-# Make predictions on the hold-out validation set
-y_pred = model.predict(X_test)
+# Make predictions on the validation set
+y_pred_lgb = lgb_clf.predict(X_val)
 
-# Calculate accuracy as the evaluation metric
-accuracy = accuracy_score(y_test, y_pred)
+# Evaluate accuracy on the validation set
+# Accuracy is a suitable metric for this balanced binary classification task
+accuracy_lgb = accuracy_score(y_val, y_pred_lgb)
 
-# Print the final validation performance
-print(f"Final Validation Performance: {accuracy:.4f}")
+# Print the final validation performance in the required format
+print(f"Final Validation Performance: {accuracy_lgb:.4f}")

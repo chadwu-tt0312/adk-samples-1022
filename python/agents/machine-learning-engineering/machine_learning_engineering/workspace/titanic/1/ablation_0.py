@@ -1,103 +1,99 @@
 
-
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
-import lightgbm as lgb
-from sklearn.metrics import accuracy_score
 import numpy as np
+import xgboost as xgb
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
-# --- Function to run the pipeline with configurable options for ablation ---
-def run_pipeline(df_original, use_ensemble=True, age_imputation_method='median'):
-    df = df_original.copy()
+# Load the Titanic dataset
+train_df_original = pd.read_csv('./input/train.csv')
 
-    # --- Preprocessing ---
-    # Drop columns that are not useful or have too many missing values
-    df = df.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1)
+# --- Original Solution Run ---
+df_base = train_df_original.copy()
+df_base.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+df_base['Age'].fillna(df_base['Age'].median(), inplace=True)
+df_base['Embarked'].fillna(df_base['Embarked'].mode()[0], inplace=True)
+df_base['Sex'] = df_base['Sex'].map({'male': 0, 'female': 1})
+df_base = pd.get_dummies(df_base, columns=['Embarked', 'Pclass'], drop_first=True)
 
-    # Handle missing 'Age' values based on specified method
-    if age_imputation_method == 'median':
-        df['Age'].fillna(df['Age'].median(), inplace=True)
-    elif age_imputation_method == 'mean':
-        df['Age'].fillna(df['Age'].mean(), inplace=True)
-    # If no specific method, assume original behavior or handle as error for safety
-    # For this study, we only check median vs mean
+X_base = df_base.drop('Survived', axis=1)
+y_base = df_base['Survived']
 
-    # Handle missing 'Embarked' values with the most frequent value (mode)
-    df['Embarked'].fillna(df['Embarked'].mode()[0], inplace=True)
+X_train_base, X_val_base, y_train_base, y_val_base = train_test_split(X_base, y_base, test_size=0.2, random_state=42)
 
-    # Convert 'Sex' and 'Embarked' categorical features to numerical using Label Encoding
-    le_sex = LabelEncoder()
-    df['Sex'] = le_sex.fit_transform(df['Sex'])
+xgb_clf_base = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+xgb_clf_base.fit(X_train_base, y_train_base)
+y_pred_base = xgb_clf_base.predict(X_val_base)
+accuracy_base = accuracy_score(y_val_base, y_pred_base)
+print(f"Original Model Final Validation Performance: {accuracy_base:.4f}")
 
-    le_embarked = LabelEncoder()
-    df['Embarked'] = le_embarked.fit_transform(df['Embarked'])
+# --- Ablation 1: Remove drop_first=True for one-hot encoding ---
+df_ablation1 = train_df_original.copy()
+df_ablation1.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+df_ablation1['Age'].fillna(df_ablation1['Age'].median(), inplace=True)
+df_ablation1['Embarked'].fillna(df_ablation1['Embarked'].mode()[0], inplace=True)
+df_ablation1['Sex'] = df_ablation1['Sex'].map({'male': 0, 'female': 1})
+# Modified line: drop_first=False (or omit, as default is False)
+df_ablation1 = pd.get_dummies(df_ablation1, columns=['Embarked', 'Pclass'], drop_first=False)
 
-    # Define features (X) and target (y)
-    X = df.drop('Survived', axis=1)
-    y = df['Survived']
+X_ablation1 = df_ablation1.drop('Survived', axis=1)
+y_ablation1 = df_ablation1['Survived']
 
-    # Split the data into training and testing sets to create a hold-out validation set
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train_ablation1, X_val_ablation1, y_train_ablation1, y_val_ablation1 = train_test_split(X_ablation1, y_ablation1, test_size=0.2, random_state=42)
 
-    # --- Model Training ---
-    # Train the XGBoost Classifier
-    xgb_model = XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
-    xgb_model.fit(X_train, y_train)
+xgb_clf_ablation1 = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+xgb_clf_ablation1.fit(X_train_ablation1, y_train_ablation1)
+y_pred_ablation1 = xgb_clf_ablation1.predict(X_val_ablation1)
+accuracy_ablation1 = accuracy_score(y_val_ablation1, y_pred_ablation1)
+print(f"Ablation 1 (no drop_first=True for One-Hot Encoding) Final Validation Performance: {accuracy_ablation1:.4f}")
 
-    if use_ensemble:
-        # Train the LightGBM Classifier
-        lgb_model = lgb.LGBMClassifier(objective='binary', metric='binary_logloss', random_state=42)
-        lgb_model.fit(X_train, y_train)
+# --- Ablation 2: Impute 'Age' with mean instead of median ---
+df_ablation2 = train_df_original.copy()
+df_ablation2.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
+# Modified line: Fill missing Age values with the mean
+df_ablation2['Age'].fillna(df_ablation2['Age'].mean(), inplace=True)
+df_ablation2['Embarked'].fillna(df_ablation2['Embarked'].mode()[0], inplace=True)
+df_ablation2['Sex'] = df_ablation2['Sex'].map({'male': 0, 'female': 1})
+df_ablation2 = pd.get_dummies(df_ablation2, columns=['Embarked', 'Pclass'], drop_first=True)
 
-    # --- Prediction and Ensembling ---
-    # Get prediction probabilities from XGBoost model
-    xgb_preds_proba = xgb_model.predict_proba(X_test)[:, 1]
+X_ablation2 = df_ablation2.drop('Survived', axis=1)
+y_ablation2 = df_ablation2['Survived']
 
-    if use_ensemble:
-        # Get prediction probabilities from LightGBM model
-        lgb_preds_proba = lgb_model.predict_proba(X_test)[:, 1]
-        # Simple ensemble: average the predicted probabilities
-        ensembled_preds_proba = (xgb_preds_proba + lgb_preds_proba) / 2
-        final_y_pred = (ensembled_preds_proba >= 0.5).astype(int)
+X_train_ablation2, X_val_ablation2, y_train_ablation2, y_val_ablation2 = train_test_split(X_ablation2, y_ablation2, test_size=0.2, random_state=42)
+
+xgb_clf_ablation2 = xgb.XGBClassifier(objective='binary:logistic', eval_metric='logloss', use_label_encoder=False, random_state=42)
+xgb_clf_ablation2.fit(X_train_ablation2, y_train_ablation2)
+y_pred_ablation2 = xgb_clf_ablation2.predict(X_val_ablation2)
+accuracy_ablation2 = accuracy_score(y_val_ablation2, y_pred_ablation2)
+print(f"Ablation 2 (Age mean imputation) Final Validation Performance: {accuracy_ablation2:.4f}")
+
+# --- Conclusion on contributions ---
+impact_drop_first = accuracy_base - accuracy_ablation1 # Positive if original `drop_first=True` was better
+impact_age_imputation = accuracy_base - accuracy_ablation2 # Positive if original median imputation was better
+
+if impact_drop_first > 0 and impact_age_imputation > 0:
+    if impact_drop_first > impact_age_imputation:
+        print("\nBased on this ablation study, the use of `drop_first=True` in one-hot encoding contributes most to the overall performance, as its removal caused the largest performance drop.")
+    elif impact_age_imputation > impact_drop_first:
+        print("\nBased on this ablation study, the use of median imputation for 'Age' contributes most to the overall performance, as changing it to mean imputation caused the largest performance drop.")
     else:
-        # If not ensembling, use XGBoost's direct predictions
-        final_y_pred = (xgb_preds_proba >= 0.5).astype(int)
-
-    # --- Evaluation ---
-    # Calculate accuracy
-    accuracy = accuracy_score(y_test, final_y_pred)
-    return accuracy
-
-# Load the dataset once for all experiments
-original_df = pd.read_csv('./input/train.csv')
-
-# --- Baseline Performance (Full Solution) ---
-baseline_accuracy = run_pipeline(original_df, use_ensemble=True, age_imputation_method='median')
-print(f"Baseline Validation Performance (Full Solution): {baseline_accuracy:.4f}")
-
-# --- Ablation 1: Remove LightGBM from ensemble (Use only XGBoost) ---
-# This means setting use_ensemble=False, effectively removing the contribution of LightGBM and the averaging.
-ablation1_accuracy = run_pipeline(original_df, use_ensemble=False, age_imputation_method='median')
-print(f"Ablation 1 Performance (XGBoost only, no ensemble): {ablation1_accuracy:.4f}")
-
-# --- Ablation 2: Change 'Age' imputation from median to mean ---
-# This means changing the age_imputation_method parameter while keeping the ensemble.
-ablation2_accuracy = run_pipeline(original_df, use_ensemble=True, age_imputation_method='mean')
-print(f"Ablation 2 Performance (Age imputed with Mean): {ablation2_accuracy:.4f}")
-
-# --- Ablation Study Conclusion ---
-# Calculate the impact of each ablation relative to the baseline
-impact_ensemble_removal = baseline_accuracy - ablation1_accuracy # Positive if removing ensemble hurts
-impact_age_imputation_change = baseline_accuracy - ablation2_accuracy # Positive if changing imputation hurts
-
-print("\n--- Ablation Study Conclusion ---")
-if impact_ensemble_removal > 0 and impact_ensemble_removal > impact_age_imputation_change:
-    print(f"The part of the code that contributes the most positively to the overall performance is the ensembling of LightGBM with XGBoost. Its removal (Ablation 1) resulted in the largest drop in accuracy of {impact_ensemble_removal:.4f}.")
-elif impact_age_imputation_change > 0 and impact_age_imputation_change > impact_ensemble_removal:
-    print(f"The part of the code that contributes the most positively to the overall performance is the 'Age' imputation strategy (median). Changing it to mean imputation (Ablation 2) resulted in the largest drop in accuracy of {impact_age_imputation_change:.4f}.")
-elif impact_ensemble_removal > 0 and impact_age_imputation_change > 0 and abs(impact_ensemble_removal - impact_age_imputation_change) < 0.001:
-    print(f"Both ensembling and 'Age' imputation (median) contribute positively and similarly to performance. Removing ensemble caused a {impact_ensemble_removal:.4f} drop, and changing age imputation caused a {impact_age_imputation_change:.4f} drop.")
-else:
-    print("Neither of the ablated components showed a significant positive contribution (i.e., their removal/change did not cause a substantial drop in performance), or their removal/change unexpectedly improved performance.")
+        print("\nBased on this ablation study, both `drop_first=True` in one-hot encoding and median imputation for 'Age' contribute similarly to the overall performance.")
+elif impact_drop_first < 0 and impact_age_imputation < 0:
+    if abs(impact_drop_first) > abs(impact_age_imputation):
+        print("\nBased on this ablation study, the original choice of `drop_first=True` for one-hot encoding was less optimal, as removing it improved performance more than the other ablation.")
+    elif abs(impact_age_imputation) > abs(impact_drop_first):
+        print("\nBased on this ablation study, the original choice of median imputation for 'Age' was less optimal, as changing it to mean imputation improved performance more than the other ablation.")
+    else:
+        print("\nBased on this ablation study, both original choices for `drop_first=True` and 'Age' imputation were similarly less optimal, as their alternatives improved performance similarly.")
+elif impact_drop_first > 0 and impact_age_imputation < 0:
+    if impact_drop_first > abs(impact_age_imputation):
+        print("\nBased on this ablation study, the use of `drop_first=True` in one-hot encoding contributes most to the overall performance.")
+    else:
+        print("\nBased on this ablation study, the original choice for 'Age' imputation was less optimal, leading to a performance gain when changed, which was a larger impact than the positive contribution of `drop_first=True`.")
+elif impact_drop_first < 0 and impact_age_imputation > 0:
+    if abs(impact_drop_first) > impact_age_imputation:
+        print("\nBased on this ablation study, the original choice for `drop_first=True` in one-hot encoding was less optimal, leading to a performance gain when changed, which was a larger impact than the positive contribution of median 'Age' imputation.")
+    else:
+        print("\nBased on this ablation study, the use of median imputation for 'Age' contributes most to the overall performance.")
+else: # One or both had 0 impact
+    print("\nBased on this ablation study, neither of the ablated parts showed a significant discernible contribution to the overall performance in this specific context.")

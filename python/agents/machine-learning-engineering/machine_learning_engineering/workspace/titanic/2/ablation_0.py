@@ -1,116 +1,83 @@
 
 import pandas as pd
-import numpy as np
-import os
+import xgboost as xgb
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
 
-def run_ablation_experiment(ablation_type=None):
-    """
-    Runs the Titanic survival prediction model with specified ablations.
+# Load data from the specified input directory
+train_df_original = pd.read_csv('./input/train.csv')
 
-    Args:
-        ablation_type (str, optional): Type of ablation to perform.
-            - None (default): Runs the baseline solution.
-            - 'age_mean_imputation': Uses mean for Age imputation instead of median.
-            - 'embarked_label_encode': Uses LabelEncoder for Embarked instead of One-Hot encoding.
-    Returns:
-        float: Validation accuracy of the model.
-    """
-    # Load data - focusing only on train_df for validation study
-    train_df = pd.read_csv(os.path.join('input', 'train.csv'))
+# --- Function to run a specific configuration and return accuracy ---
+def run_configuration(df, skip_age_fare_imputation=False, n_estimators_val=None):
+    y = df['Survived']
+    X = df.drop('Survived', axis=1)
 
-    # Separate target variable before any processing
-    y_train_full = train_df['Survived']
-    X_train_full = train_df.drop('Survived', axis=1)
+    X_processed = X.copy()
 
-    # Make a copy for current experiment to ensure isolation between runs
-    X_processed = X_train_full.copy()
-
-    # --- Preprocessing Steps ---
-
-    # Drop irrelevant columns (common across all ablations for this study)
-    X_processed.drop(['PassengerId', 'Name', 'Ticket', 'Cabin'], axis=1, inplace=True)
-
-    # Fill missing 'Age'
-    if ablation_type == 'age_mean_imputation':
-        # Ablation 1: Use mean imputation for Age
-        X_processed['Age'].fillna(X_processed['Age'].mean(), inplace=True)
-    else:
-        # Baseline: Use median imputation for Age
+    # Preprocessing steps
+    if not skip_age_fare_imputation:
         X_processed['Age'].fillna(X_processed['Age'].median(), inplace=True)
-
-    # Fill missing 'Fare' with median (no missing Fare in train_df, but good practice)
-    X_processed['Fare'].fillna(X_processed['Fare'].median(), inplace=True)
-
-    # Fill missing 'Embarked' with mode
+        X_processed['Fare'].fillna(X_processed['Fare'].median(), inplace=True)
+    
     X_processed['Embarked'].fillna(X_processed['Embarked'].mode()[0], inplace=True)
+    X_processed['Sex'] = X_processed['Sex'].map({'male': 0, 'female': 1})
+    X_processed = pd.get_dummies(X_processed, columns=['Embarked', 'Pclass'], drop_first=True)
+    X_processed.drop(['Name', 'Ticket', 'Cabin', 'PassengerId'], axis=1, inplace=True)
 
-    # Encode 'Sex' using LabelEncoder
-    le_sex = LabelEncoder()
-    X_processed['Sex'] = le_sex.fit_transform(X_processed['Sex'])
+    X_train, X_val, y_train, y_val = train_test_split(X_processed, y, test_size=0.2, random_state=42)
 
-    # Encode 'Embarked' and 'Pclass'
-    if ablation_type == 'embarked_label_encode':
-        # Ablation 2: Use LabelEncoder for Embarked, Pclass remains One-Hot encoded
-        le_embarked = LabelEncoder()
-        X_processed['Embarked'] = le_embarked.fit_transform(X_processed['Embarked'])
-        # Pclass still one-hot encoded as per baseline's handling of Pclass
-        X_processed = pd.get_dummies(X_processed, columns=['Pclass'], drop_first=True)
-    else:
-        # Baseline: One-hot encode both Embarked and Pclass
-        X_processed = pd.get_dummies(X_processed, columns=['Embarked', 'Pclass'], drop_first=True)
-
-    # --- Model Training and Evaluation ---
-
-    # Train-validation split
-    X_train_model, X_val_model, y_train_model, y_val_model = train_test_split(
-        X_processed, y_train_full, test_size=0.2, random_state=42
-    )
-
-    # Initialize and train XGBoost Classifier
-    # use_label_encoder=False and eval_metric='logloss' retained for consistency with original solution
-    model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
-    model.fit(X_train_model, y_train_model)
-
-    # Make predictions on the validation set
-    y_pred_val = model.predict(X_val_model)
-
-    # Evaluate model using accuracy
-    accuracy = accuracy_score(y_val_model, y_pred_val)
+    # Initialize XGBoost Classifier with specified n_estimators or default
+    model_params = {
+        'objective': 'binary:logistic',
+        'eval_metric': 'logloss',
+        'use_label_encoder': False,
+        'random_state': 42
+    }
+    if n_estimators_val is not None:
+        model_params['n_estimators'] = n_estimators_val
+    
+    model = xgb.XGBClassifier(**model_params)
+    model.fit(X_train, y_train)
+    
+    y_pred = model.predict(X_val)
+    accuracy = accuracy_score(y_val, y_pred)
     return accuracy
 
-# --- Main execution for ablation study ---
+# --- Baseline Run ---
+baseline_accuracy = run_configuration(train_df_original.copy())
+print(f'Baseline Performance: {baseline_accuracy:.4f}')
 
-# 1. Run Baseline Experiment
-baseline_accuracy = run_ablation_experiment(ablation_type=None)
-print(f"Baseline Performance (Original Solution): {baseline_accuracy:.4f}")
+# --- Ablation 1: Skip Age and Fare Imputation ---
+ablation_no_imputation_accuracy = run_configuration(train_df_original.copy(), skip_age_fare_imputation=True)
+print(f'Ablation (Skip Age/Fare Imputation) Performance: {ablation_no_imputation_accuracy:.4f}')
 
-# 2. Ablation: Age Mean Imputation (instead of Median)
-age_mean_accuracy = run_ablation_experiment(ablation_type='age_mean_imputation')
-print(f"Ablation (Age: Mean Imputation vs. Median): {age_mean_accuracy:.4f}")
+# --- Ablation 2: Reduce n_estimators in XGBoost (e.g., from default 100 to 10) ---
+ablation_reduced_estimators_accuracy = run_configuration(train_df_original.copy(), n_estimators_val=10)
+print(f'Ablation (Reduced n_estimators to 10) Performance: {ablation_reduced_estimators_accuracy:.4f}')
 
-# 3. Ablation: Embarked Label Encoding (instead of One-Hot)
-embarked_le_accuracy = run_ablation_experiment(ablation_type='embarked_label_encode')
-print(f"Ablation (Embarked: Label Encoding vs. One-Hot Encoding): {embarked_le_accuracy:.4f}")
+# --- Determine and print the most contributing part ---
+performance_deltas = {
+    "Age/Fare Imputation": baseline_accuracy - ablation_no_imputation_accuracy, # Positive if removal hurts
+    "Number of XGBoost Estimators": baseline_accuracy - ablation_reduced_estimators_accuracy # Positive if reduction hurts
+}
 
-print("\n--- Ablation Study Summary ---")
+max_detrimental_ablation = None
+max_detriment_value = -float('inf')
 
-# Calculate performance changes relative to baseline
-diff_age = age_mean_accuracy - baseline_accuracy
-diff_embarked = embarked_le_accuracy - baseline_accuracy
+for k, v in performance_deltas.items():
+    if v > max_detriment_value:
+        max_detriment_value = v
+        max_detrimental_ablation = k
 
-if abs(diff_age) > abs(diff_embarked):
-    most_impactful_part = "Age imputation method"
-    impact_description = f"Changing 'Age' imputation from median to mean resulted in a performance {'increase' if diff_age > 0 else 'decrease'} of {abs(diff_age):.4f}."
-elif abs(diff_embarked) > abs(diff_age):
-    most_impactful_part = "Embarked encoding method"
-    impact_description = f"Changing 'Embarked' encoding from one-hot to label encoding resulted in a performance {'increase' if diff_embarked > 0 else 'decrease'} of {abs(diff_embarked):.4f}."
+if max_detriment_value > 0:
+    print(f'The "{max_detrimental_ablation}" part contributes the most to the overall performance, as its removal/reduction caused the largest performance drop ({max_detriment_value:.4f}).')
+elif max_detriment_value < 0:
+    max_improvement_ablation = None
+    max_improvement_value = 0
+    for k, v in performance_deltas.items():
+        if v < max_improvement_value:
+            max_improvement_value = v
+            max_improvement_ablation = k
+    print(f'Interestingly, modifying/removing "{max_improvement_ablation}" led to the largest performance improvement ({( - max_improvement_value):.4f}). This suggests the original implementation of this part could be suboptimal.')
 else:
-    most_impactful_part = "Both ablations had a similar magnitude of impact."
-    impact_description = "The impact was either very small or comparable between the two modifications."
-
-print(f"Based on these ablations, the '{most_impactful_part}' contributes the most to the model's overall performance among the tested modifications.")
-print(impact_description)
+    print('No significant change in performance was observed for the tested ablations, indicating that the ablated parts do not significantly contribute to the current model\'s performance or the changes were not impactful enough.')
